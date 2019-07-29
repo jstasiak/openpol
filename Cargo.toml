@@ -1,0 +1,14 @@
+[package]
+name = "openpol"
+version = "0.1.0"
+authors = ["Jakub Stasiak <jakub@stasiak.at>"]
+license = "GPL-2.0"
+edition = "2018"
+description = "OpenPol"
+repository = "https://github.com/jstasiak/openpol"
+readme = "README.md"
+
+[badges]
+travis-ci = { repository = "jstasiak/openpol" }
+
+[dependencies]
