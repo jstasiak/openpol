@@ -93,7 +93,7 @@ impl Sounddat {
         self.sizes.len()
     }
 
-    /// The `sound`-s data (`sound` is 0-based). The data is to be interpreted as described by the
+    /// The `sound`'s data (`sound` is 0-based). The data is to be interpreted as described by the
     /// module's documentation.
     pub fn sound_data(&self, sound: usize) -> &[u8] {
         let offset = self.offsets[sound];
