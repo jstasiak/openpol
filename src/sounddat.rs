@@ -94,7 +94,7 @@ impl Sounddat {
     }
 
     /// The `sound`'s data (`sound` is 0-based). The data is to be interpreted as described by the
-    /// module's documentation.
+    /// [module's documentation on the sound format](index.html#sound-format).
     pub fn sound_data(&self, sound: usize) -> &[u8] {
         let offset = self.offsets[sound];
         &self.data[offset..offset + self.sizes[sound]]
