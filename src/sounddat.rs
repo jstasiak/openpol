@@ -30,6 +30,11 @@
 //! assert_eq!(sounddat.sound_data(0), [1, 2, 3, 4]);
 //! assert_eq!(sounddat.sound_data(1), [5, 6]);
 //! ```
+//!
+//! An `openpol-extract-audio` sample binary which uses this code is provided. You can listen to
+//! a chosen sound using sox and mpv like this:
+//!
+//! `sox -r22050 -t ub -c 1 <(cargo run --bin openpol-extract-audio -- SOUND.DAT 20) -t wav - | mpv -`
 use std::convert::TryInto;
 use std::io;
 
