@@ -20,6 +20,16 @@
 //!
 //! The individual sounds are unsigned bytes containing single channel of 22 050Hz-sampled raw audio data.
 //!
+//! # Example
+//!
+//! ```rust
+//! use openpol::sounddat::Sounddat;
+//! let data = [1, 2, 3, 4, 5, 6, 4, 0, 0, 0, 2, 0, 0, 0];
+//! let sounddat = Sounddat::load(&mut data.as_ref()).unwrap();
+//! assert_eq!(sounddat.sounds(), 2);
+//! assert_eq!(sounddat.sound_data(0), [1, 2, 3, 4]);
+//! assert_eq!(sounddat.sound_data(1), [5, 6]);
+//! ```
 use std::convert::TryInto;
 use std::io;
 
@@ -88,19 +98,5 @@ impl Sounddat {
     pub fn sound_data(&self, sound: usize) -> &[u8] {
         let offset = self.offsets[sound];
         &self.data[offset..offset + self.sizes[sound]]
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::sounddat::Sounddat;
-
-    #[test]
-    fn test_sounddat_loading_works() {
-        let data = [1, 2, 3, 4, 5, 6, 4, 0, 0, 0, 2, 0, 0, 0];
-        let sounddat = Sounddat::load(&mut data.as_ref()).unwrap();
-        assert_eq!(sounddat.sounds(), 2);
-        assert_eq!(sounddat.sound_data(0), [1, 2, 3, 4]);
-        assert_eq!(sounddat.sound_data(1), [5, 6]);
     }
 }
