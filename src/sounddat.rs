@@ -1,3 +1,25 @@
+//! sound.dat data access operations.
+//!
+//! # sound.dat file format
+//! The file consists of concatenated N sounds followed by N little endian 32-bit unsigned
+//! integer sizes (in bytes). The nth size corresponds to the nth sound, the file layout
+//! looks like this:
+//!
+//! `[ 0th sound ] [ 1st sound ] ... [ N-2th sound ] [N-1th sound]
+//! [ 0th size ] [ 1st size ] ... [ N-2th size ] [ N-1th size]`
+//!
+//! The original game hardcodes the number of sounds when opening the sound.dat file, but it's
+//! possible to autodect it. This module performs autodetection like this: read 4-byte integers
+//! starting with the very end of the file and add them together until the sum is equal to
+//! B - 4 * N (where B is total file size in bytes and N is the number of sizes read so far).
+//!
+//! The algorithm has been verified with sound.dat coming from the CD version of Polanie
+//! (SHA1 hash `8033978a51c176122ba507e417e8d758fdaa70a9`, 3 681 170 bytes) - the file contains 183 sounds.
+//!
+//! # Sound format
+//!
+//! The individual sounds are unsigned bytes containing single channel of 22 050Hz-sampled raw audio data.
+//!
 use std::convert::TryInto;
 use std::io;
 
