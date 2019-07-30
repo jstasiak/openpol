@@ -23,6 +23,7 @@
 use std::convert::TryInto;
 use std::io;
 
+/// A way to access sound.dat contents.
 pub struct Sounddat {
     data: Vec<u8>,
     sizes: Vec<usize>,
@@ -30,6 +31,11 @@ pub struct Sounddat {
 }
 
 impl Sounddat {
+    /// Load sound.dat contents. All of it is read into memory.
+    ///
+    /// # Errors
+    /// The code will panic if `reader` cannot read to end. If the number of sounds can't be
+    /// autodetected (the file contains unexpected data) the function will return `None`.
     pub fn load<T: io::Read>(reader: &mut T) -> Option<Sounddat> {
         let mut data = Vec::new();
         reader.read_to_end(&mut data).unwrap();
@@ -72,10 +78,13 @@ impl Sounddat {
         })
     }
 
+    /// The number of sounds in the file.
     pub fn sounds(&self) -> usize {
         self.sizes.len()
     }
 
+    /// The `sound`-s data (`sound` is 0-based). The data is to be interpreted as described by the
+    /// module's documentation.
     pub fn sound_data(&self, sound: usize) -> &[u8] {
         let offset = self.offsets[sound];
         &self.data[offset..offset + self.sizes[sound]]
