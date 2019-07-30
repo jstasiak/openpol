@@ -24,6 +24,14 @@
 //! assert_eq!(paldat.palette_data(0), &data[0..768]);
 //! assert_eq!(paldat.palette_data(1), &data[768..768 * 2]);
 //! ```
+//!
+//! An `openpol-extract-palette` sample binary which uses this code is provided. You can display
+//! a palette (palette number 3 /0-based/ in this case) like this (the code depends on ImageMagick
+//! being present in the system, the palette is displayed as 16x16 pixel square):
+//!
+//! `convert -depth 8 -size 16x16 rgb:<(cargo run --bin openpol-extract-palette PAL.DAT 3) image.png`
+//!
+//! Now view `image.png` with the image viewer of your choice.
 use std::io;
 
 /// A way to access pal.dat contents.
