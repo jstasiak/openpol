@@ -14,17 +14,6 @@
 //!
 //! # Example
 //!
-//! ```rust
-//! use openpol::paldat::Paldat;
-//! let data: Vec<u8> = (0..(768 as u16 * 2)).map(|v| (v >> 3) as u8).collect();
-//! // I honestly don't know how and why this &mut &* thing works and why I couldn't make it work
-//! // any other way. I need to read more on slices, references and dereferences it seems.
-//! let paldat = Paldat::load(&mut &*data).unwrap();
-//! assert_eq!(paldat.palettes(), 2);
-//! assert_eq!(paldat.palette_data(0), &data[0..768]);
-//! assert_eq!(paldat.palette_data(1), &data[768..768 * 2]);
-//! ```
-//!
 //! An `openpol-extract-palette` sample binary which uses this code is provided. You can display
 //! a palette (palette number 3 /0-based/ in this case) like this (the code depends on ImageMagick
 //! being present in the system, the palette is displayed as 16x16 pixel square):
@@ -66,5 +55,21 @@ impl Paldat {
     /// [module's documentation on the palette format](index.html).
     pub fn palette_data(&self, palette: usize) -> &[u8] {
         &self.data[palette * PALETTE_SIZE_IN_BYTES..(palette + 1) * PALETTE_SIZE_IN_BYTES]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::paldat::Paldat;
+
+    #[test]
+    fn test_paldat_loading_works() {
+        let data: Vec<u8> = (0..(768 as u16 * 2)).map(|v| (v >> 3) as u8).collect();
+        // I honestly don't know how and why this &mut &* thing works and why I couldn't make it work
+        // any other way. I need to read more on slices, references and dereferences it seems.
+        let paldat = Paldat::load(&mut &*data).unwrap();
+        assert_eq!(paldat.palettes(), 2);
+        assert_eq!(paldat.palette_data(0), &data[0..768]);
+        assert_eq!(paldat.palette_data(1), &data[768..768 * 2]);
     }
 }
