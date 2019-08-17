@@ -46,7 +46,7 @@ impl Image13h {
     /// The method will return None if there's something wrong with the contents:
     /// * width or height equal 0
     /// * not enough bytes when reading
-    pub fn load<T: io::Read>(reader: &mut T) -> Option<Image13h> {
+    pub fn load<T: io::Read>(mut reader: T) -> Option<Image13h> {
         let mut buffer = [0, 0];
         let width = match reader.read_exact(&mut buffer) {
             Err(_) => return None,
@@ -80,7 +80,7 @@ impl Image13h {
     }
 
     /// Save the image to a writer. Write errors will result in a panic.
-    pub fn save<T: io::Write>(&self, writer: &mut T) {
+    pub fn save<T: io::Write>(&self, mut writer: T) {
         for dim in &[self.width, self.height] {
             writer.write(&(*dim as u16).to_le_bytes()).unwrap();
         }
@@ -100,7 +100,7 @@ mod tests {
     fn test_not_enough_data_is_an_error() {
         for size in 0..12 {
             dbg!(size);
-            assert!(Image13h::load(&mut &GOOD_DATA[0..size]).is_none());
+            assert!(Image13h::load(&GOOD_DATA[0..size]).is_none());
         }
     }
 
@@ -113,14 +113,14 @@ mod tests {
         // Bad unknown marker
         let bad_data3 = [1, 0, 1, 0, 0, 0, 0, 0];
 
-        assert!(Image13h::load(&mut &bad_data1[..]).is_none());
-        assert!(Image13h::load(&mut &bad_data2[..]).is_none());
-        assert!(Image13h::load(&mut &bad_data3[..]).is_none());
+        assert!(Image13h::load(&bad_data1[..]).is_none());
+        assert!(Image13h::load(&bad_data2[..]).is_none());
+        assert!(Image13h::load(&bad_data3[..]).is_none());
     }
 
     #[test]
     fn test_loading_works() {
-        let image13h = Image13h::load(&mut &GOOD_DATA[..]).unwrap();
+        let image13h = Image13h::load(&GOOD_DATA[..]).unwrap();
         assert_eq!(image13h.width(), 3);
         assert_eq!(image13h.height(), 2);
         assert_eq!(image13h.line(0), [1, 2, 3]);
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_saving_works() {
-        let image13h = Image13h::load(&mut &GOOD_DATA[..]).unwrap();
+        let image13h = Image13h::load(&GOOD_DATA[..]).unwrap();
         let mut buffer = Vec::new();
         image13h.save(&mut buffer);
         assert_eq!(buffer, &GOOD_DATA[0..buffer.len()]);

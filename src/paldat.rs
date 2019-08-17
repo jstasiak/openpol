@@ -36,7 +36,7 @@ impl Paldat {
     /// # Errors
     /// The code will panic if `reader` cannot read to end. If the number of bytes is not a
     /// multiple of 768 bytes (invalid file) the function will return `None`.
-    pub fn load<T: io::Read>(reader: &mut T) -> Option<Paldat> {
+    pub fn load<T: io::Read>(mut reader: T) -> Option<Paldat> {
         let mut data = Vec::new();
         reader.read_to_end(&mut data).unwrap();
         if data.len() % PALETTE_SIZE_IN_BYTES != 0 {
@@ -65,9 +65,7 @@ mod tests {
     #[test]
     fn test_paldat_loading_works() {
         let data: Vec<u8> = (0..(768 as u16 * 2)).map(|v| (v >> 3) as u8).collect();
-        // I honestly don't know how and why this &mut &* thing works and why I couldn't make it work
-        // any other way. I need to read more on slices, references and dereferences it seems.
-        let paldat = Paldat::load(&mut &*data).unwrap();
+        let paldat = Paldat::load(&data[..]).unwrap();
         assert_eq!(paldat.palettes(), 2);
         assert_eq!(paldat.palette_data(0), &data[0..768]);
         assert_eq!(paldat.palette_data(1), &data[768..768 * 2]);

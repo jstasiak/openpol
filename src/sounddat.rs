@@ -42,7 +42,7 @@ impl Sounddat {
     /// # Errors
     /// The code will panic if `reader` cannot read to end. If the number of sounds can't be
     /// autodetected (the file contains unexpected data) the function will return `None`.
-    pub fn load<T: io::Read>(reader: &mut T) -> Option<Sounddat> {
+    pub fn load<T: io::Read>(mut reader: T) -> Option<Sounddat> {
         let mut data = Vec::new();
         reader.read_to_end(&mut data).unwrap();
 
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn test_sounddat_loading_works() {
         let data = [1, 2, 3, 4, 5, 6, 4, 0, 0, 0, 2, 0, 0, 0];
-        let sounddat = Sounddat::load(&mut data.as_ref()).unwrap();
+        let sounddat = Sounddat::load(&data[..]).unwrap();
         assert_eq!(sounddat.sounds(), 2);
         assert_eq!(sounddat.sound_data(0), [1, 2, 3, 4]);
         assert_eq!(sounddat.sound_data(1), [5, 6]);
