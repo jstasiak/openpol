@@ -116,6 +116,15 @@ impl Image13h {
         subimage
     }
 
+    /// Blit another image into a rect in this image. The width and height of `image` and `rect`
+    /// need to be the same.
+    pub fn blit(&mut self, image: &Image13h, rect: &Rect) {
+        for (src_line, dst_line) in (rect.top..rect.beyond_bottom()).enumerate() {
+            self.mut_line(dst_line)[rect.left..rect.beyond_right()]
+                .copy_from_slice(image.line(src_line));
+        }
+    }
+
     /// Fill the image with a color.
     pub fn fill(&mut self, color: u8) {
         let len = self.data.len();
@@ -243,5 +252,16 @@ mod tests {
         expected_image.mut_line(0).copy_from_slice(&[1, 1]);
         image.fill(1);
         assert_eq!(image, expected_image);
+    }
+
+    #[test]
+    fn test_blit_works() {
+        let mut main_image = Image13h::empty(3, 2);
+        let mut subimage = Image13h::empty(2, 1);
+        subimage.fill(1);
+        main_image.blit(&subimage, &Rect::from_ranges(1..3, 1..2));
+        let mut expected_image = Image13h::empty(3, 2);
+        expected_image.mut_line(1)[1..3].copy_from_slice(&[1, 1]);
+        assert_eq!(main_image, expected_image);
     }
 }
