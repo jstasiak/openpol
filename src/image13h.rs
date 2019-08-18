@@ -115,6 +115,13 @@ impl Image13h {
         }
         subimage
     }
+
+    /// Fill the image with a color.
+    pub fn fill(&mut self, color: u8) {
+        let len = self.data.len();
+        self.data.clear();
+        self.data.resize(len, color);
+    }
 }
 
 pub struct Rect {
@@ -227,5 +234,14 @@ mod tests {
         expected_subimage.mut_line(0).copy_from_slice(&[1, 2]);
         expected_subimage.mut_line(1).copy_from_slice(&[4, 5]);
         assert_eq!(subimage, expected_subimage);
+    }
+
+    #[test]
+    fn test_fill_works() {
+        let mut image = Image13h::empty(2, 1);
+        let mut expected_image = Image13h::empty(2, 1);
+        expected_image.mut_line(0).copy_from_slice(&[1, 1]);
+        image.fill(1);
+        assert_eq!(image, expected_image);
     }
 }
