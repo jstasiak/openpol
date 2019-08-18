@@ -14,7 +14,9 @@
 //! * `data` is `width * height` unsigned bytes containing color indices
 
 use std::io;
+use std::ops;
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Image13h {
     data: Vec<u8>,
     width: usize,
@@ -38,6 +40,11 @@ impl Image13h {
     pub fn line(&self, line: usize) -> &[u8] {
         assert!(line < self.height);
         &self.data[line * self.width..(line + 1) * self.width]
+    }
+
+    /// Mutable variant of `line()`.
+    pub fn mut_line(&mut self, line: usize) -> &mut [u8] {
+        &mut self.data[line * self.width..(line + 1) * self.width]
     }
 
     /// Load an image from a reader. Extra content after the expected data is ignored.
@@ -79,6 +86,16 @@ impl Image13h {
         })
     }
 
+    /// Create an empty image with the specified dimensions. Empty means the image is filled with
+    /// color 0.
+    pub fn empty(width: usize, height: usize) -> Image13h {
+        Image13h {
+            width,
+            height,
+            data: vec![0; width * height],
+        }
+    }
+
     /// Save the image to a writer. Write errors will result in a panic.
     pub fn save<T: io::Write>(&self, mut writer: T) {
         for dim in &[self.width, self.height] {
@@ -87,11 +104,65 @@ impl Image13h {
         writer.write(&[1, 0]).unwrap();
         writer.write(&self.data).unwrap();
     }
+
+    /// Extract a `rect`-bound subimage from the image.
+    pub fn subimage(&self, rect: &Rect) -> Image13h {
+        let mut subimage = Self::empty(rect.width, rect.height);
+        for (dst_line, src_line) in (rect.top..rect.beyond_bottom()).enumerate() {
+            subimage
+                .mut_line(dst_line)
+                .copy_from_slice(&self.line(src_line)[rect.left..rect.beyond_right()]);
+        }
+        subimage
+    }
+}
+
+pub struct Rect {
+    /// The position of the left border, inclusive.
+    pub left: usize,
+    /// The position of the top border, inclusive.
+    pub top: usize,
+    /// The width of the rect.
+    pub width: usize,
+    /// The height of the rect.
+    pub height: usize,
+}
+
+impl Rect {
+    /// Construct a new `Rect` from coordinate ranges (exclusively-ended).
+    pub fn from_ranges(x: ops::Range<usize>, y: ops::Range<usize>) -> Rect {
+        Rect {
+            left: x.start,
+            top: y.start,
+            width: x.end - x.start,
+            height: y.end - y.start,
+        }
+    }
+
+    /// Get the right-most x coordinate that's still in the rect.
+    pub fn right_inclusive(&self) -> usize {
+        self.beyond_right() - 1
+    }
+
+    /// Get the x coordinate that's one to the right of the right border of the rect.
+    pub fn beyond_right(&self) -> usize {
+        self.left + self.width
+    }
+
+    /// Get the bottom-most y coordinate that's still in the rect.
+    pub fn bottom_inclusive(&self) -> usize {
+        self.beyond_bottom() - 1
+    }
+
+    /// Get the y coordinate that's one below the bottom border of the rect.
+    pub fn beyond_bottom(&self) -> usize {
+        self.top + self.height
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::image13h::Image13h;
+    use crate::image13h::{Image13h, Rect};
 
     // 3 by 2 image, we have 1 byte extra at the end to see if we ignore it correctly
     static GOOD_DATA: [u8; 13] = [3, 0, 2, 0, 1, 0, 1, 2, 3, 4, 5, 6, 7];
@@ -133,5 +204,28 @@ mod tests {
         let mut buffer = Vec::new();
         image13h.save(&mut buffer);
         assert_eq!(buffer, &GOOD_DATA[0..buffer.len()]);
+    }
+
+    #[test]
+    fn test_rect_works() {
+        let rect = Rect::from_ranges(0..10, 10..14);
+        assert_eq!(rect.left, 0);
+        assert_eq!(rect.top, 10);
+        assert_eq!(rect.width, 10);
+        assert_eq!(rect.height, 4);
+        assert_eq!(rect.right_inclusive(), 9);
+        assert_eq!(rect.beyond_right(), 10);
+        assert_eq!(rect.bottom_inclusive(), 13);
+        assert_eq!(rect.beyond_bottom(), 14);
+    }
+
+    #[test]
+    fn test_subimage_works() {
+        let image = Image13h::load(&GOOD_DATA[..]).unwrap();
+        let subimage = image.subimage(&Rect::from_ranges(0..2, 0..2));
+        let mut expected_subimage = Image13h::empty(2, 2);
+        expected_subimage.mut_line(0).copy_from_slice(&[1, 2]);
+        expected_subimage.mut_line(1).copy_from_slice(&[4, 5]);
+        assert_eq!(subimage, expected_subimage);
     }
 }
