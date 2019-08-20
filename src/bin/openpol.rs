@@ -2,7 +2,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &'static str = env!("GIT_DESCRIPTION");
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
