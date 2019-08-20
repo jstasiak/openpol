@@ -50,6 +50,10 @@ fn main() -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
 
+    let mut timer = sdl.timer()?;
+    let mut last_render = timer.ticks();
+    let ms_per_frame = flic.speed_msec();
+
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
@@ -62,16 +66,23 @@ fn main() -> Result<(), String> {
                 _ => (),
             }
         }
+
+        let now = timer.ticks();
+        let buffer_changed = now > last_render + ms_per_frame;
         let mut raster =
             RasterMut::new(flic_width, flic_height, &mut flic_buffer, &mut flic_palette);
-        // TODO: Make the actual playback speed match the desired playback speed
-        flic.read_next_frame(&mut raster)
-            .map_err(|e| e.to_string())?;
-        texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-            // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
-            // holes between rows in the buffer.
-            image13h::indices_to_rgb(&flic_buffer, &flic_palette, buffer)
-        })?;
+        while last_render < now - ms_per_frame {
+            flic.read_next_frame(&mut raster)
+                .map_err(|e| e.to_string())?;
+            last_render += ms_per_frame;
+        }
+        if buffer_changed {
+            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
+                // holes between rows in the buffer.
+                image13h::indices_to_rgb(&flic_buffer, &flic_palette, buffer)
+            })?;
+        }
 
         canvas.clear();
         canvas.copy(&texture, None, None)?;
