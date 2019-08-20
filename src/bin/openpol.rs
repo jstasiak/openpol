@@ -1,5 +1,5 @@
 use flic::{FlicFile, RasterMut};
-use openpol::image13h::indices_to_rgb;
+use openpol::image13h;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
@@ -12,7 +12,11 @@ fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
     let window = video
-        .window(&format!("openpol {}", VERSION), 320, 200)
+        .window(
+            &format!("openpol {}", VERSION),
+            image13h::SCREEN_WIDTH as u32,
+            image13h::SCREEN_HEIGHT as u32,
+        )
         .build()
         .map_err(|e| e.to_string())?;
     let mut canvas = window
@@ -35,7 +39,7 @@ fn main() -> Result<(), String> {
     let flic_width = flic.width() as usize;
     let flic_height = flic.height() as usize;
     let mut flic_buffer = vec![0; flic_width * flic_height];
-    let mut flic_palette = vec![0; 3 * 256];
+    let mut flic_palette = vec![0; 3 * image13h::COLORS];
 
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
@@ -66,7 +70,7 @@ fn main() -> Result<(), String> {
         texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
             // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
             // holes between rows in the buffer.
-            indices_to_rgb(&flic_buffer, &flic_palette, buffer)
+            image13h::indices_to_rgb(&flic_buffer, &flic_palette, buffer)
         })?;
 
         canvas.clear();

@@ -16,6 +16,15 @@
 use std::io;
 use std::ops;
 
+/// Mode 13h screen width.
+pub const SCREEN_WIDTH: usize = 320;
+
+/// Mode 13h screen height.
+pub const SCREEN_HEIGHT: usize = 200;
+
+/// Mode 13h number of colors.
+pub const COLORS: usize = 256;
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Image13h {
     data: Vec<u8>,
