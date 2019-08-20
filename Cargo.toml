@@ -7,8 +7,10 @@ edition = "2018"
 description = "OpenPol"
 repository = "https://github.com/jstasiak/openpol"
 readme = "README.md"
+default-run = "openpol"
 
 [badges]
 travis-ci = { repository = "jstasiak/openpol" }
 
 [dependencies]
+sdl2 = "*"
