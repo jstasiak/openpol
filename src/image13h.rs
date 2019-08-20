@@ -176,9 +176,19 @@ impl Rect {
     }
 }
 
+pub fn indices_to_rgb(indices: &[u8], palette: &[u8], buffer: &mut [u8]) {
+    for (index, color_index) in indices.iter().enumerate() {
+        let buffer_offset = index * 3;
+        let palette_offset = *color_index as usize * 3;
+        buffer[buffer_offset + 0] = palette[palette_offset + 0];
+        buffer[buffer_offset + 1] = palette[palette_offset + 1];
+        buffer[buffer_offset + 2] = palette[palette_offset + 2];
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::image13h::{Image13h, Rect};
+    use crate::image13h::{indices_to_rgb, Image13h, Rect};
 
     // 3 by 2 image, we have 1 byte extra at the end to see if we ignore it correctly
     static GOOD_DATA: [u8; 13] = [3, 0, 2, 0, 1, 0, 1, 2, 3, 4, 5, 6, 7];
@@ -263,5 +273,15 @@ mod tests {
         let mut expected_image = Image13h::empty(3, 2);
         expected_image.mut_line(1)[1..3].copy_from_slice(&[1, 1]);
         assert_eq!(main_image, expected_image);
+    }
+
+    #[test]
+    fn test_indices_to_rgb_works() {
+        let indices = [1, 2, 0];
+        let palette = [0, 1, 2, 10, 11, 12, 20, 21, 22];
+        let expected_rgb = [10, 11, 12, 20, 21, 22, 0, 1, 2];
+        let mut buffer = vec![0; expected_rgb.len()];
+        indices_to_rgb(&indices, &palette, &mut buffer[..]);
+        assert_eq!(buffer, expected_rgb);
     }
 }
