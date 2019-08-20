@@ -9,6 +9,7 @@ cache:
     - $HOME/.cargo
 before_install:
   - rustup component add rustfmt
+  - sudo apt install libsdl2-dev
 before_cache:
   - cargo install cargo-tarpaulin
   - rm -rf $HOME/.cargo/registry
