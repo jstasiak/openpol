@@ -2,11 +2,13 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
     let window = video
-        .window("openpol", 320, 200)
+        .window(&format!("openpol {}", VERSION), 320, 200)
         .build()
         .map_err(|e| e.to_string())?;
     let mut canvas = window
