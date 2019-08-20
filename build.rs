@@ -1,4 +1,3 @@
-use std::io;
 use std::process::Command;
 
 fn main() -> Result<(), String> {
