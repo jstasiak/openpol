@@ -1,9 +1,13 @@
 use flic::{FlicFile, RasterMut};
 use openpol::image13h;
+use sdl2::audio::{AudioCallback, AudioSpecDesired};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
+use std::cmp;
 use std::env;
+use std::fs;
+use std::io::prelude::*;
 use std::path;
 
 const VERSION: &'static str = env!("GIT_DESCRIPTION");
@@ -54,6 +58,24 @@ fn main() -> Result<(), String> {
     let mut last_render = timer.ticks();
     let ms_per_frame = flic.speed_msec();
 
+    let mut audio_file = fs::File::open(&data_dir.join("I002.DAT")).map_err(|e| e.to_string())?;
+    let mut audio_data = Vec::new();
+    audio_file
+        .read_to_end(&mut audio_data)
+        .map_err(|e| e.to_string())?;
+    let audio = sdl.audio()?;
+    let desired_spec = AudioSpecDesired {
+        freq: Some(22_050),
+        channels: Some(1),
+        samples: None,
+    };
+
+    let audio_device = audio.open_playback(None, &desired_spec, |_spec| Audio {
+        data: audio_data,
+        position: 0,
+    })?;
+    audio_device.resume();
+
     'running: loop {
         // get the inputs here
         for event in event_pump.poll_iter() {
@@ -90,4 +112,26 @@ fn main() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+struct Audio {
+    data: Vec<u8>,
+    position: usize,
+}
+
+impl AudioCallback for Audio {
+    type Channel = u8;
+
+    fn callback(&mut self, out: &mut [u8]) {
+        let to_buffer = cmp::min(out.len(), self.data.len() - self.position);
+        out[..to_buffer].copy_from_slice(&self.data[self.position..self.position + to_buffer]);
+        self.position += to_buffer;
+        // TODO repeat the audio just like we repeat the video. Going silent after the first play
+        // for now.
+        if self.position == self.data.len() {
+            for x in out[to_buffer..].iter_mut() {
+                *x = 0;
+            }
+        }
+    }
 }
