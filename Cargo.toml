@@ -13,4 +13,5 @@ default-run = "openpol"
 travis-ci = { repository = "jstasiak/openpol" }
 
 [dependencies]
+flic = "*"
 sdl2 = "*"
