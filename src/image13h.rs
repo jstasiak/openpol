@@ -43,6 +43,11 @@ impl Image13h {
         self.height
     }
 
+    /// Get a reference to a slice containing the image data. The data is stored row by row.
+    pub fn data(&self) -> &[u8] {
+        &self.data[..]
+    }
+
     /// Get the image contents of a particular line as a byte slice. `line` is 0-based. Since the
     /// data is stored line-by-line internally it's more optimal that way. If you want to access
     /// particular pixel just index into the slice.
@@ -185,13 +190,12 @@ impl Rect {
     }
 }
 
-pub fn indices_to_rgb(indices: &[u8], palette: &[u8], buffer: &mut [u8]) {
-    for (index, color_index) in indices.iter().enumerate() {
-        let buffer_offset = index * 3;
+pub fn indices_to_rgb<T: io::Write>(indices: &[u8], palette: &[u8], mut writer: T) {
+    for color_index in indices {
         let palette_offset = *color_index as usize * 3;
-        buffer[buffer_offset + 0] = palette[palette_offset + 0];
-        buffer[buffer_offset + 1] = palette[palette_offset + 1];
-        buffer[buffer_offset + 2] = palette[palette_offset + 2];
+        writer
+            .write_all(&palette[palette_offset..palette_offset + 3])
+            .unwrap();
     }
 }
 
@@ -289,8 +293,8 @@ mod tests {
         let indices = [1, 2, 0];
         let palette = [0, 1, 2, 10, 11, 12, 20, 21, 22];
         let expected_rgb = [10, 11, 12, 20, 21, 22, 0, 1, 2];
-        let mut buffer = vec![0; expected_rgb.len()];
-        indices_to_rgb(&indices, &palette, &mut buffer[..]);
+        let mut buffer = Vec::new();
+        indices_to_rgb(&indices, &palette, &mut buffer);
         assert_eq!(buffer, expected_rgb);
     }
 }
