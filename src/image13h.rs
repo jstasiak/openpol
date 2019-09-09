@@ -25,7 +25,10 @@ pub const SCREEN_HEIGHT: usize = 200;
 /// Mode 13h number of colors.
 pub const COLORS: usize = 256;
 
-#[derive(Debug, Eq, PartialEq)]
+/// The header size in bytes.
+pub const HEADER_SIZE: usize = 6;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Image13h {
     data: Vec<u8>,
     width: usize,
@@ -46,6 +49,11 @@ impl Image13h {
     /// Get a reference to a slice containing the image data. The data is stored row by row.
     pub fn data(&self) -> &[u8] {
         &self.data[..]
+    }
+
+    /// Like `data`, but mutable.
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.data[..]
     }
 
     /// Get the image contents of a particular line as a byte slice. `line` is 0-based. Since the
