@@ -85,7 +85,7 @@ impl Grafdat {
             - SECOND_HALF_DIMENSIONS.0 * SECOND_HALF_DIMENSIONS.1];
 
         for i in 0..IMAGES {
-            writer.write(&[0; 6]).unwrap();
+            writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
                 .write(&self.images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
                 .unwrap();
@@ -99,7 +99,7 @@ impl Grafdat {
                 10 => 9,
                 _ => i,
             };
-            writer.write(&[0; 6]).unwrap();
+            writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
                 .write(&self.images[i].data()[FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1..])
                 .unwrap();
