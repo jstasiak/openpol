@@ -118,27 +118,8 @@ impl Game {
         texture: &mut Texture,
         audio_device: &mut AudioDevice<Audio>,
     ) -> Result<(), String> {
-        let mut flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
-        assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
-        assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
+        let mut intro = Intro::new(&data_dir)?;
 
-        let mut flic_buffer = vec![0; image13h::SCREEN_PIXELS];
-        let mut flic_palette = vec![0; 3 * image13h::COLORS];
-
-        let mut audio_file =
-            fs::File::open(&data_dir.join("I002.DAT")).map_err(|e| e.to_string())?;
-        let mut audio_data = Vec::new();
-        audio_file
-            .read_to_end(&mut audio_data)
-            .map_err(|e| e.to_string())?;
-
-        {
-            let mut audio_lock = audio_device.lock();
-            audio_lock.data = audio_data;
-            audio_lock.position = 0;
-        }
-
-        let ms_per_frame = flic.speed_msec();
         let mut last_render = timer.ticks();
         'running: loop {
             // get the inputs here
@@ -152,32 +133,89 @@ impl Game {
                     _ => (),
                 }
             }
-
             let now = timer.ticks();
-            let buffer_changed = now > last_render + ms_per_frame;
-            let mut raster = RasterMut::new(
-                image13h::SCREEN_WIDTH,
-                image13h::SCREEN_HEIGHT,
-                &mut flic_buffer,
-                &mut flic_palette,
-            );
-            while last_render < now - ms_per_frame {
-                flic.read_next_frame(&mut raster)
-                    .map_err(|e| e.to_string())?;
-                last_render += ms_per_frame;
-            }
-            if buffer_changed {
-                texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                    // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
-                    // holes between rows in the buffer.
-                    image13h::indices_to_rgb(&flic_buffer, &flic_palette, buffer)
-                })?;
-            }
+            let dt = now - last_render;
+            last_render = now;
+            intro.update(dt, audio_device);
 
+            // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
+            // holes between rows in the buffer.
+            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                intro.display(buffer)
+            })?;
             canvas.clear();
             canvas.copy(&texture, None, None)?;
             canvas.present();
         }
         Ok(())
+    }
+}
+
+struct Intro<'a> {
+    flic: FlicFile,
+    since_last_render: u32,
+    flic_buffer: Vec<u8>,
+    flic_palette: Vec<u8>,
+    data_dir: &'a path::Path,
+    audio_loaded: bool,
+    buffer_changed: bool,
+}
+
+impl<'a> Intro<'a> {
+    pub fn new(data_dir: &'a path::Path) -> Result<Intro<'a>, String> {
+        let flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
+        assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
+        assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
+
+        Ok(Intro {
+            flic,
+            since_last_render: 0,
+            flic_buffer: vec![0; image13h::SCREEN_PIXELS],
+            flic_palette: vec![0; 3 * image13h::COLORS],
+            data_dir,
+            audio_loaded: false,
+            buffer_changed: false,
+        })
+    }
+
+    pub fn update(&mut self, ticks: u32, audio_device: &mut AudioDevice<Audio>) {
+        let ms_per_frame = self.flic.speed_msec();
+
+        if !self.audio_loaded {
+            match fs::File::open(&self.data_dir.join("I002.DAT")) {
+                Err(_) => (),
+                Ok(mut audio_file) => {
+                    let mut audio_data = Vec::new();
+                    audio_file.read_to_end(&mut audio_data).unwrap();
+
+                    let mut audio_lock = audio_device.lock();
+                    audio_lock.data = audio_data.clone();
+                }
+            }
+            self.audio_loaded = true;
+        }
+
+        self.since_last_render += ticks;
+        let buffer_changed = self.since_last_render >= ms_per_frame;
+        if buffer_changed {
+            self.buffer_changed = true;
+            let mut raster = RasterMut::new(
+                image13h::SCREEN_WIDTH,
+                image13h::SCREEN_HEIGHT,
+                &mut self.flic_buffer,
+                &mut self.flic_palette,
+            );
+            while self.since_last_render >= ms_per_frame {
+                self.flic.read_next_frame(&mut raster).unwrap();
+                self.since_last_render -= ms_per_frame;
+            }
+        }
+    }
+
+    pub fn display(&mut self, buffer: &mut [u8]) {
+        if self.buffer_changed {
+            image13h::indices_to_rgb(&self.flic_buffer, &self.flic_palette, buffer);
+            self.buffer_changed = false;
+        }
     }
 }
