@@ -152,48 +152,58 @@ impl Game {
 }
 
 struct Intro<'a> {
-    flic: FlicFile,
+    flic: Option<FlicFile>,
     since_last_render: u32,
     flic_buffer: Vec<u8>,
     flic_palette: Vec<u8>,
     data_dir: &'a path::Path,
-    audio_loaded: bool,
     buffer_changed: bool,
+    current_intro: u8,
 }
 
 impl<'a> Intro<'a> {
     pub fn new(data_dir: &'a path::Path) -> Result<Intro<'a>, String> {
-        let flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
-        assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
-        assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
-
         Ok(Intro {
-            flic,
+            flic: None,
             since_last_render: 0,
             flic_buffer: vec![0; image13h::SCREEN_PIXELS],
             flic_palette: vec![0; 3 * image13h::COLORS],
             data_dir,
-            audio_loaded: false,
             buffer_changed: false,
+            current_intro: 0,
         })
     }
 
     pub fn update(&mut self, ticks: u32, audio_device: &mut AudioDevice<Audio>) {
-        let ms_per_frame = self.flic.speed_msec();
+        let flic = match &mut self.flic {
+            None => match self.current_intro {
+                i @ 0..=2 => {
+                    let flic =
+                        FlicFile::open(&self.data_dir.join(format!("S00{}.DAT", i))).unwrap();
+                    assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
+                    assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
+                    self.flic = Some(flic);
 
-        if !self.audio_loaded {
-            match fs::File::open(&self.data_dir.join("I002.DAT")) {
-                Err(_) => (),
-                Ok(mut audio_file) => {
-                    let mut audio_data = Vec::new();
-                    audio_file.read_to_end(&mut audio_data).unwrap();
+                    match fs::File::open(&self.data_dir.join(format!("I00{}.DAT", i))) {
+                        Err(_) => (),
+                        Ok(mut audio_file) => {
+                            let mut audio_data = Vec::new();
+                            audio_file.read_to_end(&mut audio_data).unwrap();
 
-                    let mut audio_lock = audio_device.lock();
-                    audio_lock.data = audio_data.clone();
+                            let mut audio_lock = audio_device.lock();
+                            audio_lock.data = audio_data;
+                            audio_lock.position = 0;
+                        }
+                    };
+
+                    self.flic.as_mut().unwrap()
                 }
-            }
-            self.audio_loaded = true;
-        }
+                _ => return,
+            },
+            Some(flic) => flic,
+        };
+
+        let ms_per_frame = flic.speed_msec();
 
         self.since_last_render += ticks;
         let buffer_changed = self.since_last_render >= ms_per_frame;
@@ -206,8 +216,16 @@ impl<'a> Intro<'a> {
                 &mut self.flic_palette,
             );
             while self.since_last_render >= ms_per_frame {
-                self.flic.read_next_frame(&mut raster).unwrap();
-                self.since_last_render -= ms_per_frame;
+                let playback_result = flic.read_next_frame(&mut raster).unwrap();
+                match playback_result.ended {
+                    false => self.since_last_render -= ms_per_frame,
+                    true => {
+                        self.since_last_render = 0;
+                        self.flic = None;
+                        self.current_intro += 1;
+                        return;
+                    }
+                }
             }
         }
     }
