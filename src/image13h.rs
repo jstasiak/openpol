@@ -22,6 +22,9 @@ pub const SCREEN_WIDTH: usize = 320;
 /// Mode 13h screen height.
 pub const SCREEN_HEIGHT: usize = 200;
 
+/// Total number of pixels on the screen.
+pub const SCREEN_PIXELS: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
+
 /// Mode 13h number of colors.
 pub const COLORS: usize = 256;
 
