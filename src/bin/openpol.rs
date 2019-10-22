@@ -54,8 +54,8 @@ impl Game {
         let window = video
             .window(
                 &format!("openpol {}", VERSION),
-                image13h::SCREEN_WIDTH as u32,
-                image13h::SCREEN_HEIGHT as u32,
+                image13h::SCREEN_WIDTH as u32 * 2,
+                image13h::SCREEN_HEIGHT as u32 * 2,
             )
             .build()
             .map_err(|e| e.to_string())?;
