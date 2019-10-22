@@ -106,13 +106,10 @@ impl Game {
         })?;
         audio_device.resume();
 
-        let mut flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
-        assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
-        assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
         self.event_loop(
             &mut event_pump,
             &mut timer,
-            &mut flic,
+            &data_dir,
             &mut canvas,
             &mut texture,
         )
@@ -122,10 +119,14 @@ impl Game {
         &self,
         event_pump: &mut EventPump,
         timer: &mut TimerSubsystem,
-        flic: &mut FlicFile,
+        data_dir: &path::Path,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
     ) -> Result<(), String> {
+        let mut flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
+        assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
+        assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
+
         let mut flic_buffer = vec![0; image13h::SCREEN_PIXELS];
         let mut flic_palette = vec![0; 3 * image13h::COLORS];
 
