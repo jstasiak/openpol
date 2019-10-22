@@ -40,17 +40,17 @@ fn main() -> Result<(), String> {
     let root_dir = path::Path::new(&args[0]);
     let data_dir = root_dir.join("data");
     let mut flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
-    let flic_width = flic.width() as usize;
-    let flic_height = flic.height() as usize;
-    let mut flic_buffer = vec![0; flic_width * flic_height];
+    assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
+    assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
+    let mut flic_buffer = vec![0; image13h::SCREEN_PIXELS];
     let mut flic_palette = vec![0; 3 * image13h::COLORS];
 
     let texture_creator = canvas.texture_creator();
     let mut texture = texture_creator
         .create_texture_streaming(
             PixelFormatEnum::RGB24,
-            flic_width as u32,
-            flic_height as u32,
+            image13h::SCREEN_WIDTH as u32,
+            image13h::SCREEN_HEIGHT as u32,
         )
         .map_err(|e| e.to_string())?;
 
@@ -91,8 +91,12 @@ fn main() -> Result<(), String> {
 
         let now = timer.ticks();
         let buffer_changed = now > last_render + ms_per_frame;
-        let mut raster =
-            RasterMut::new(flic_width, flic_height, &mut flic_buffer, &mut flic_palette);
+        let mut raster = RasterMut::new(
+            image13h::SCREEN_WIDTH,
+            image13h::SCREEN_HEIGHT,
+            &mut flic_buffer,
+            &mut flic_palette,
+        );
         while last_render < now - ms_per_frame {
             flic.read_next_frame(&mut raster)
                 .map_err(|e| e.to_string())?;
