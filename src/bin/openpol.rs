@@ -1,6 +1,6 @@
 use flic::{FlicFile, RasterMut};
 use openpol::image13h;
-use sdl2::audio::{AudioCallback, AudioSpecDesired};
+use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
@@ -86,13 +86,6 @@ impl Game {
             .map_err(|e| e.to_string())?;
 
         let mut timer = sdl.timer()?;
-
-        let mut audio_file =
-            fs::File::open(&data_dir.join("I002.DAT")).map_err(|e| e.to_string())?;
-        let mut audio_data = Vec::new();
-        audio_file
-            .read_to_end(&mut audio_data)
-            .map_err(|e| e.to_string())?;
         let audio = sdl.audio()?;
         let desired_spec = AudioSpecDesired {
             freq: Some(22_050),
@@ -100,8 +93,8 @@ impl Game {
             samples: None,
         };
 
-        let audio_device = audio.open_playback(None, &desired_spec, |_spec| Audio {
-            data: audio_data,
+        let mut audio_device = audio.open_playback(None, &desired_spec, |_spec| Audio {
+            data: Vec::new(),
             position: 0,
         })?;
         audio_device.resume();
@@ -112,6 +105,7 @@ impl Game {
             &data_dir,
             &mut canvas,
             &mut texture,
+            &mut audio_device,
         )
     }
 
@@ -122,6 +116,7 @@ impl Game {
         data_dir: &path::Path,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
+        audio_device: &mut AudioDevice<Audio>,
     ) -> Result<(), String> {
         let mut flic = FlicFile::open(&data_dir.join("S002.DAT")).map_err(|e| e.to_string())?;
         assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
@@ -129,6 +124,19 @@ impl Game {
 
         let mut flic_buffer = vec![0; image13h::SCREEN_PIXELS];
         let mut flic_palette = vec![0; 3 * image13h::COLORS];
+
+        let mut audio_file =
+            fs::File::open(&data_dir.join("I002.DAT")).map_err(|e| e.to_string())?;
+        let mut audio_data = Vec::new();
+        audio_file
+            .read_to_end(&mut audio_data)
+            .map_err(|e| e.to_string())?;
+
+        {
+            let mut audio_lock = audio_device.lock();
+            audio_lock.data = audio_data;
+            audio_lock.position = 0;
+        }
 
         let ms_per_frame = flic.speed_msec();
         let mut last_render = timer.ticks();
