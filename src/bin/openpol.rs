@@ -22,6 +22,7 @@ fn main() -> Result<(), String> {
 struct Audio {
     data: Vec<u8>,
     position: usize,
+    silence: u8,
 }
 
 impl AudioCallback for Audio {
@@ -35,7 +36,7 @@ impl AudioCallback for Audio {
         // for now.
         if self.position == self.data.len() {
             for x in out[to_buffer..].iter_mut() {
-                *x = 0;
+                *x = self.silence;
             }
         }
     }
@@ -93,9 +94,10 @@ impl Game {
             samples: None,
         };
 
-        let mut audio_device = audio.open_playback(None, &desired_spec, |_spec| Audio {
+        let mut audio_device = audio.open_playback(None, &desired_spec, |spec| Audio {
             data: Vec::new(),
             position: 0,
+            silence: spec.silence,
         })?;
         audio_device.resume();
 
