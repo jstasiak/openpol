@@ -159,12 +159,16 @@ mod tests {
     #[test]
     fn test_loading_and_saving_images_works() {
         let loaded1 = Grafdat::load(&dummy_graf_dat_content()[..]).unwrap();
-        let mut expected_images = Vec::new();
-        for i in 0..IMAGES {
-            let mut image = image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1);
-            image.fill(i as u8);
-            expected_images.push(image);
-        }
+        let expected_images = (0..IMAGES)
+            .map(|i| {
+                image13h::Image13h::filled_with_color(
+                    IMAGE_DIMENSIONS.0,
+                    IMAGE_DIMENSIONS.1,
+                    i as u8,
+                )
+            })
+            .collect::<Vec<_>>();
+
         let expected_grafdat = Grafdat::load_from_images(expected_images);
         // First let's verify that after loading from disk we get the expected images
         assert_eq!(loaded1, expected_grafdat);
