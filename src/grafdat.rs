@@ -29,13 +29,6 @@ pub struct Grafdat {
 }
 
 impl Grafdat {
-    /// Create a new empty Grafdat (all images are filled with color 0).
-    pub fn empty() -> Grafdat {
-        Grafdat {
-            images: vec![image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1); IMAGES],
-        }
-    }
-
     /// Load graf.dat from a reader. This function will return None if
     ///
     /// * The image can't be loaded
