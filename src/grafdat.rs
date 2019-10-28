@@ -122,17 +122,6 @@ impl Grafdat {
     pub fn to_images(&self) -> &[image13h::Image13h] {
         &self.images
     }
-
-    /*
-    /// Save the font to a writer.
-    pub fn save<T: io::Write>(&self, writer: T) {}
-
-    pub fn empty(width: usize, height: usize) -> Grafdat {
-        Grafdat {
-            images: vec![image13h::Image13h::empty(319, 199); 15],
-        }
-    }
-    */
 }
 
 #[cfg(test)]
