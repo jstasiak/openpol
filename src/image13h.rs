@@ -163,6 +163,7 @@ impl Image13h {
     }
 }
 
+#[derive(Debug)]
 pub struct Rect {
     /// The position of the left border, inclusive.
     pub left: usize,
