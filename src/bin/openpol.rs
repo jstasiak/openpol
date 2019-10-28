@@ -123,15 +123,15 @@ impl Game {
         let mut intro = Intro::new(&data_dir)?;
 
         let mut last_render = timer.ticks();
-        'running: loop {
+        while intro.running() {
             // get the inputs here
             for event in event_pump.poll_iter() {
                 match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
+                    Event::Quit { .. } => intro.stop(),
+                    Event::KeyDown {
                         keycode: Some(Keycode::Escape),
                         ..
-                    } => break 'running,
+                    } => intro.next(),
                     _ => (),
                 }
             }
@@ -161,6 +161,7 @@ struct Intro<'a> {
     data_dir: &'a path::Path,
     buffer_changed: bool,
     current_intro: u8,
+    running: bool,
 }
 
 impl<'a> Intro<'a> {
@@ -173,6 +174,7 @@ impl<'a> Intro<'a> {
             data_dir,
             buffer_changed: false,
             current_intro: 0,
+            running: true,
         })
     }
 
@@ -222,9 +224,7 @@ impl<'a> Intro<'a> {
                 match playback_result.ended {
                     false => self.since_last_render -= ms_per_frame,
                     true => {
-                        self.since_last_render = 0;
-                        self.flic = None;
-                        self.current_intro += 1;
+                        self.next();
                         return;
                     }
                 }
@@ -237,5 +237,19 @@ impl<'a> Intro<'a> {
             image13h::indices_to_rgb(&self.flic_buffer, &self.flic_palette, buffer);
             self.buffer_changed = false;
         }
+    }
+
+    pub fn running(&self) -> bool {
+        self.running && self.current_intro < 3
+    }
+
+    pub fn stop(&mut self) {
+        self.running = false;
+    }
+
+    pub fn next(&mut self) {
+        self.since_last_render = 0;
+        self.flic = None;
+        self.current_intro += 1;
     }
 }
