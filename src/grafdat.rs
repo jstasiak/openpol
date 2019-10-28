@@ -147,9 +147,11 @@ mod tests {
         let grafdat = Grafdat::load(&dummy_graf_dat_content[..]).unwrap();
         let mut images = Vec::new();
         for i in 0..IMAGES {
-            let mut image = image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1);
-            image.fill(i as u8);
-            images.push(image);
+            images.push(image13h::Image13h::filled_with_color(
+                IMAGE_DIMENSIONS.0,
+                IMAGE_DIMENSIONS.1,
+                i as u8,
+            ));
         }
         let expected_grafdat = Grafdat::load_from_images(images);
         // First let's verify that after loading from disk we get the expected images

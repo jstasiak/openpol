@@ -114,10 +114,15 @@ impl Image13h {
     /// Create an empty image with the specified dimensions. Empty means the image is filled with
     /// color 0.
     pub fn empty(width: usize, height: usize) -> Image13h {
+        Image13h::filled_with_color(width, height, 0)
+    }
+
+    /// Create an image filled with desired color.
+    pub fn filled_with_color(width: usize, height: usize, color: u8) -> Image13h {
         Image13h {
             width,
             height,
-            data: vec![0; width * height],
+            data: vec![color; width * height],
         }
     }
 
