@@ -2,7 +2,6 @@ use flic::{FlicFile, RasterMut};
 use openpol::image13h;
 use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired};
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
@@ -128,10 +127,7 @@ impl Game {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit { .. } => intro.stop(),
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => intro.next(),
+                    Event::KeyDown { .. } => intro.next(),
                     _ => (),
                 }
             }
