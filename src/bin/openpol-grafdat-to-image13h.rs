@@ -28,10 +28,11 @@ fn main() {
         grafdat::IMAGE_DIMENSIONS.1 * grafdat::IMAGES,
     );
 
+    let images = grafdat.to_images();
     for i in 0..grafdat::IMAGES {
         let yoffset = i * grafdat::IMAGE_DIMENSIONS.1;
         image.blit(
-            grafdat.image(i),
+            &images[i],
             &image13h::Rect::from_ranges(
                 0..grafdat::IMAGE_DIMENSIONS.0,
                 yoffset..yoffset + grafdat::IMAGE_DIMENSIONS.1,

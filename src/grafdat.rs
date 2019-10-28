@@ -72,7 +72,17 @@ impl Grafdat {
             image_data[first_half_size..first_half_size + second_half_size].copy_from_slice(src2);
             images.push(image);
         }
-        Some(Grafdat { images })
+        Some(Grafdat::load_from_images(images))
+    }
+
+    /// Load Grafdat from `IMAGES` Image13h images. Images need to have correct dimensions.
+    pub fn load_from_images(images: Vec<image13h::Image13h>) -> Grafdat {
+        assert_eq!(images.len(), IMAGES);
+        for i in &images {
+            assert_eq!(i.width(), IMAGE_DIMENSIONS.0);
+            assert_eq!(i.height(), IMAGE_DIMENSIONS.1);
+        }
+        Grafdat { images }
     }
 
     /// Save the Grafdat to a writer.
@@ -84,10 +94,11 @@ impl Grafdat {
             - image13h::HEADER_SIZE
             - SECOND_HALF_DIMENSIONS.0 * SECOND_HALF_DIMENSIONS.1];
 
+        let images = self.to_images();
         for i in 0..IMAGES {
             writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
-                .write(&self.images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
+                .write(&images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
                 .unwrap();
             writer.write(&first_halves_filler).unwrap();
         }
@@ -101,20 +112,15 @@ impl Grafdat {
             };
             writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
-                .write(&self.images[i].data()[FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1..])
+                .write(&images[i].data()[FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1..])
                 .unwrap();
             writer.write(&second_halves_filler).unwrap();
         }
     }
 
-    /// Get a reference to the i-th image.
-    pub fn image(&self, i: usize) -> &image13h::Image13h {
-        &self.images[i]
-    }
-
-    /// Get a mutable reference to the i-th image.
-    pub fn image_mut(&mut self, i: usize) -> &mut image13h::Image13h {
-        &mut self.images[i]
+    /// Convert Grafdat to a slice of `IMAGES` Image13h images.
+    pub fn to_images(&self) -> &[image13h::Image13h] {
+        &self.images
     }
 
     /*
@@ -131,17 +137,21 @@ impl Grafdat {
 
 #[cfg(test)]
 mod tests {
-    use crate::grafdat::{Grafdat, IMAGES};
+    use crate::grafdat::{Grafdat, IMAGES, IMAGE_DIMENSIONS};
+    use crate::image13h;
     use std::fs;
 
     #[test]
     fn test_loading_and_saving_works() {
         let dummy_graf_dat_content = fs::read("dummy_graf.dat").unwrap();
         let grafdat = Grafdat::load(&dummy_graf_dat_content[..]).unwrap();
-        let mut expected_grafdat = Grafdat::empty();
+        let mut images = Vec::new();
         for i in 0..IMAGES {
-            expected_grafdat.image_mut(i).fill(i as u8);
+            let mut image = image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1);
+            image.fill(i as u8);
+            images.push(image);
         }
+        let expected_grafdat = Grafdat::load_from_images(images);
         // First let's verify that after loading from disk we get the expected images
         assert_eq!(grafdat, expected_grafdat);
         // ...then make sure that after saving grafdat we get the exact save binary content.
