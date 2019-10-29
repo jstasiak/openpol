@@ -187,8 +187,16 @@ impl<'a> Intro<'a> {
                     match fs::File::open(&self.data_dir.join(format!("I00{}.DAT", i))) {
                         Err(_) => (),
                         Ok(mut audio_file) => {
+                            // The IXXX.DAT files have a 4-byte little-endian integer header that
+                            // contains the audio data size (the size of the whole file should be
+                            // audio data size + 4 bytes for the header).
+                            let mut len_buf = [0; 4];
+                            audio_file.read_exact(&mut len_buf).unwrap();
+                            let expected_len = u32::from_le_bytes(len_buf) as usize;
+
                             let mut audio_data = Vec::new();
                             audio_file.read_to_end(&mut audio_data).unwrap();
+                            assert_eq!(audio_data.len(), expected_len);
 
                             let mut audio_lock = audio_device.lock();
                             audio_lock.data = audio_data;
