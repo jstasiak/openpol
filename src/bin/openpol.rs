@@ -11,7 +11,7 @@ use std::fs;
 use std::io::prelude::*;
 use std::path;
 
-const VERSION: &'static str = env!("GIT_DESCRIPTION");
+const VERSION: &str = env!("GIT_DESCRIPTION");
 
 fn main() -> Result<(), String> {
     let game = Game::new();
@@ -225,12 +225,11 @@ impl<'a> Intro<'a> {
             );
             while self.since_last_render >= ms_per_frame {
                 let playback_result = flic.read_next_frame(&mut raster).unwrap();
-                match playback_result.ended {
-                    false => self.since_last_render -= ms_per_frame,
-                    true => {
-                        self.next();
-                        return;
-                    }
+                if playback_result.ended {
+                    self.next();
+                    return;
+                } else {
+                    self.since_last_render -= ms_per_frame;
                 }
             }
         }
