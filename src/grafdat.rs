@@ -35,7 +35,7 @@ impl Grafdat {
     /// * The image loaded is too small (see `MINIMUM_IMAGE_DIMENSIONS`)
     pub fn load<T: io::Read>(reader: T) -> Option<Grafdat> {
         match Grafdat::load_images(reader) {
-            None => return None,
+            None => None,
             Some(images) => Some(Grafdat::load_from_images(&images)),
         }
     }
@@ -51,10 +51,9 @@ impl Grafdat {
         let second_half_size = w * h2;
 
         let mut data = vec![0; FILE_SIZE];
-        match reader.read_exact(&mut data) {
-            Err(_) => return None,
-            Ok(_) => (),
-        };
+        if reader.read_exact(&mut data).is_err() {
+            return None;
+        }
         let mut images = Vec::new();
         for i in 0..IMAGES {
             let mut image = image13h::Image13h::empty(w, h);
@@ -116,10 +115,10 @@ impl Grafdat {
             - image13h::HEADER_SIZE
             - SECOND_HALF_DIMENSIONS.0 * SECOND_HALF_DIMENSIONS.1];
 
-        for i in 0..IMAGES {
+        for image in images.iter() {
             writer.write_all(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
-                .write_all(&images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
+                .write_all(&image.data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
                 .unwrap();
             writer.write_all(&first_halves_filler).unwrap();
         }
@@ -310,10 +309,9 @@ fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
         .chain(borders)
         .chain(wood)
         .chain(second_buttons);
-    let indexes_rects = indexes_coords
+    indexes_coords
         .map(|(index, (x1, y1, x2, y2))| (index, image13h::Rect::from_ranges(x1..x2, y1..y2)))
-        .collect();
-    indexes_rects
+        .collect()
 }
 
 #[cfg(test)]

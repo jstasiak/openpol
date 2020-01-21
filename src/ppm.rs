@@ -16,7 +16,7 @@ pub fn write_ppm<T: io::Write>(
             let color = &data[offset..offset + 3];
             write!(w, "{} {} {} ", color[0], color[1], color[2])?;
         }
-        write!(w, "\n")?;
+        writeln!(w)?;
     }
     w.flush()?;
     Ok(())
