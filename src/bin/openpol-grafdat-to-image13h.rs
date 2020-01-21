@@ -23,21 +23,21 @@ fn main() {
 
     let grafdat_file = fs::File::open(&args[1]).unwrap();
     let grafdat = grafdat::Grafdat::load(grafdat_file).unwrap();
-    let mut image = image13h::Image13h::empty(
+    let mut image_all = image13h::Image13h::empty(
         grafdat::IMAGE_DIMENSIONS.0,
         grafdat::IMAGE_DIMENSIONS.1 * grafdat::IMAGES,
     );
 
     let images = grafdat.to_images();
-    for i in 0..grafdat::IMAGES {
+    for (i, image) in images.iter().enumerate() {
         let yoffset = i * grafdat::IMAGE_DIMENSIONS.1;
-        image.blit(
-            &images[i],
+        image_all.blit(
+            &image,
             &image13h::Rect::from_ranges(
                 0..grafdat::IMAGE_DIMENSIONS.0,
                 yoffset..yoffset + grafdat::IMAGE_DIMENSIONS.1,
             ),
         );
     }
-    image.save(io::stdout());
+    image_all.save(io::stdout());
 }

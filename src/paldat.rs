@@ -48,7 +48,7 @@ impl Paldat {
 
     /// The number of palettes in the file.
     pub fn palettes(&self) -> usize {
-        return self.data.len() / PALETTE_SIZE_IN_BYTES;
+        self.data.len() / PALETTE_SIZE_IN_BYTES
     }
 
     /// The `palette`'s data (`palette` is 0-based). The data is to be interpreted as described by the

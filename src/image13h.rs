@@ -100,10 +100,9 @@ impl Image13h {
         }
 
         let mut data = vec![0; width * height];
-        match reader.read_exact(&mut data) {
-            Err(_) => return None,
-            Ok(_) => (),
-        };
+        if reader.read_exact(&mut data).is_err() {
+            return None;
+        }
         Some(Image13h {
             width,
             height,
