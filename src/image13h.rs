@@ -116,6 +116,11 @@ impl Image13h {
         Image13h::filled_with_color(width, height, 0)
     }
 
+    /// Create an empty, screen-sized Image13h.
+    pub fn empty_screen_sized() -> Image13h {
+        Image13h::empty(SCREEN_WIDTH, SCREEN_HEIGHT)
+    }
+
     /// Create an image filled with desired color.
     pub fn filled_with_color(width: usize, height: usize, color: u8) -> Image13h {
         Image13h {
@@ -152,6 +157,15 @@ impl Image13h {
             self.mut_line(dst_line)[rect.left..rect.beyond_right()]
                 .copy_from_slice(image.line(src_line));
         }
+    }
+
+    /// Blit whole aother image into this image. The width and height of the other image needs to
+    /// be at most the width and height of this image.
+    pub fn blit_whole(&mut self, image: &Image13h, x: usize, y: usize) {
+        self.blit(
+            image,
+            &Rect::from_ranges(x..x + image.width(), y..y + image.height()),
+        );
     }
 
     /// Fill the image with a color.
