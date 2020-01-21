@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "openpol"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "flic 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
