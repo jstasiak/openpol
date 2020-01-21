@@ -158,6 +158,12 @@ impl Grafdat {
     pub fn items_mut(&mut self) -> &mut [image13h::Image13h] {
         &mut self.items
     }
+
+    pub fn main_menu(&self) -> &image13h::Image13h {
+        // TODO think about addressing the problem of addressing the image pieces within the items
+        // vector. Maybe change that to a record of some sort?
+        self.items.last().unwrap()
+    }
 }
 
 fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
@@ -294,6 +300,10 @@ fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
         (3, (274, 38, 292, 54)),
         (3, (274, 58, 292, 74)),
     ];
+    let screens = vec![
+        // Main menu
+        (2, (0, 0, 319, 199)),
+    ];
 
     // TODO Movers, Shadow, Missiles
 
@@ -308,7 +318,8 @@ fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
         .chain(fire)
         .chain(borders)
         .chain(wood)
-        .chain(second_buttons);
+        .chain(second_buttons)
+        .chain(screens);
     indexes_coords
         .map(|(index, (x1, y1, x2, y2))| (index, image13h::Rect::from_ranges(x1..x2, y1..y2)))
         .collect()

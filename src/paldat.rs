@@ -28,7 +28,7 @@ pub struct Paldat {
     data: Vec<u8>,
 }
 
-const PALETTE_SIZE_IN_BYTES: usize = 768;
+pub const PALETTE_SIZE_IN_BYTES: usize = 768;
 
 impl Paldat {
     /// Load pal.dat contents. All of it is read into memory.

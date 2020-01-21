@@ -1,5 +1,5 @@
 use flic::{FlicFile, RasterMut};
-use openpol::image13h;
+use openpol::{grafdat, image13h, paldat};
 use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired};
 use sdl2::event::Event;
 use sdl2::pixels::{Color, PixelFormatEnum};
@@ -14,7 +14,7 @@ use std::path;
 const VERSION: &str = env!("GIT_DESCRIPTION");
 
 fn main() -> Result<(), String> {
-    let game = Game::new();
+    let mut game = Game::new()?;
     game.run()
 }
 
@@ -41,14 +41,35 @@ impl AudioCallback for Audio {
     }
 }
 
-struct Game {}
+struct Game {
+    data_dir: path::PathBuf,
+    grafdat: grafdat::Grafdat,
+    paldat: paldat::Paldat,
+    screen: image13h::Image13h,
+    palette: Vec<u8>,
+}
 
 impl Game {
-    pub fn new() -> Game {
-        Game {}
+    pub fn new() -> Result<Game, String> {
+        let args: Vec<String> = env::args().skip(1).collect();
+        if args.len() != 1 {
+            return Err("Usage: openpol GAMEDIR".to_string());
+        }
+        let root_dir = path::Path::new(&args[0]);
+        let data_dir = root_dir.join("data");
+
+        Ok(Game {
+            data_dir: data_dir.to_path_buf(),
+            paldat: paldat::Paldat::load(fs::File::open(root_dir.join("pal.dat")).unwrap())
+                .unwrap(),
+            grafdat: grafdat::Grafdat::load(fs::File::open(root_dir.join("graf.dat")).unwrap())
+                .unwrap(),
+            screen: image13h::Image13h::empty_screen_sized(),
+            palette: vec![0; paldat::PALETTE_SIZE_IN_BYTES],
+        })
     }
 
-    pub fn run(&self) -> Result<(), String> {
+    pub fn run(&mut self) -> Result<(), String> {
         let sdl = sdl2::init()?;
         let video = sdl.video()?;
         let window = video
@@ -68,13 +89,6 @@ impl Game {
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         let mut event_pump = sdl.event_pump()?;
-
-        let args: Vec<String> = env::args().skip(1).collect();
-        if args.len() != 1 {
-            return Err("Usage: openpol GAMEDIR".to_string());
-        }
-        let root_dir = path::Path::new(&args[0]);
-        let data_dir = root_dir.join("data");
 
         let texture_creator = canvas.texture_creator();
         let mut texture = texture_creator
@@ -103,7 +117,6 @@ impl Game {
         self.event_loop(
             &mut event_pump,
             &mut timer,
-            &data_dir,
             &mut canvas,
             &mut texture,
             &mut audio_device,
@@ -111,23 +124,22 @@ impl Game {
     }
 
     fn event_loop(
-        &self,
+        &mut self,
         event_pump: &mut EventPump,
         timer: &mut TimerSubsystem,
-        data_dir: &path::Path,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
         audio_device: &mut AudioDevice<Audio>,
     ) -> Result<(), String> {
-        let mut intro = Intro::new(&data_dir)?;
+        let mut intro = Intro::new(&self.data_dir)?;
 
         let mut last_render = timer.ticks();
         while intro.running() {
             // get the inputs here
             for event in event_pump.poll_iter() {
                 match event {
-                    Event::Quit { .. } => intro.stop(),
-                    Event::KeyDown { .. } => intro.next(),
+                    Event::Quit { .. } => intro.stop(audio_device),
+                    Event::KeyDown { .. } => intro.next(audio_device),
                     _ => (),
                 }
             }
@@ -140,6 +152,25 @@ impl Game {
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
                 intro.display(buffer)
+            })?;
+            canvas.clear();
+            canvas.copy(&texture, None, None)?;
+            canvas.present();
+        }
+
+        let mut game_running = true;
+        self.palette[..].copy_from_slice(self.paldat.palette_data(2));
+        self.screen.blit_whole(self.grafdat.main_menu(), 0, 0);
+        while game_running {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. } => game_running = false,
+                    Event::KeyDown { .. } => game_running = false,
+                    _ => (),
+                }
+            }
+            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                image13h::indices_to_rgb(self.screen.data(), &self.palette, buffer);
             })?;
             canvas.clear();
             canvas.copy(&texture, None, None)?;
@@ -226,7 +257,7 @@ impl<'a> Intro<'a> {
             while self.since_last_render >= ms_per_frame {
                 let playback_result = flic.read_next_frame(&mut raster).unwrap();
                 if playback_result.ended {
-                    self.next();
+                    self.next(audio_device);
                     return;
                 } else {
                     self.since_last_render -= ms_per_frame;
@@ -246,13 +277,21 @@ impl<'a> Intro<'a> {
         self.running && self.current_intro < 3
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self, audio_device: &mut AudioDevice<Audio>) {
         self.running = false;
+        clear_audio(audio_device);
     }
 
-    pub fn next(&mut self) {
+    pub fn next(&mut self, audio_device: &mut AudioDevice<Audio>) {
         self.since_last_render = 0;
         self.flic = None;
         self.current_intro += 1;
+        clear_audio(audio_device);
     }
+}
+
+fn clear_audio(audio_device: &mut AudioDevice<Audio>) {
+    let mut audio_lock = audio_device.lock();
+    audio_lock.data = Vec::new();
+    audio_lock.position = 0;
 }
