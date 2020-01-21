@@ -129,10 +129,10 @@ impl Image13h {
     /// Save the image to a writer. Write errors will result in a panic.
     pub fn save<T: io::Write>(&self, mut writer: T) {
         for dim in &[self.width, self.height] {
-            writer.write(&(*dim as u16).to_le_bytes()).unwrap();
+            writer.write_all(&(*dim as u16).to_le_bytes()).unwrap();
         }
-        writer.write(&[1, 0]).unwrap();
-        writer.write(&self.data).unwrap();
+        writer.write_all(&[1, 0]).unwrap();
+        writer.write_all(&self.data).unwrap();
     }
 
     /// Extract a `rect`-bound subimage from the image.

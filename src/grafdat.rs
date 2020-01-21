@@ -117,11 +117,11 @@ impl Grafdat {
             - SECOND_HALF_DIMENSIONS.0 * SECOND_HALF_DIMENSIONS.1];
 
         for i in 0..IMAGES {
-            writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
+            writer.write_all(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
-                .write(&images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
+                .write_all(&images[i].data()[0..FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1])
                 .unwrap();
-            writer.write(&first_halves_filler).unwrap();
+            writer.write_all(&first_halves_filler).unwrap();
         }
         for i in 0..IMAGES {
             // As mentioned in the module documentation images 9 and 10 have their second halves
@@ -131,11 +131,11 @@ impl Grafdat {
                 10 => 9,
                 _ => i,
             };
-            writer.write(&[0; image13h::HEADER_SIZE]).unwrap();
+            writer.write_all(&[0; image13h::HEADER_SIZE]).unwrap();
             writer
-                .write(&images[i].data()[FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1..])
+                .write_all(&images[i].data()[FIRST_HALF_DIMENSIONS.0 * FIRST_HALF_DIMENSIONS.1..])
                 .unwrap();
-            writer.write(&second_halves_filler).unwrap();
+            writer.write_all(&second_halves_filler).unwrap();
         }
     }
 
