@@ -1,11 +1,10 @@
 use flic::{FlicFile, RasterMut};
-use openpol::{grafdat, image13h, paldat};
-use sdl2::audio::{AudioCallback, AudioDevice, AudioSpecDesired};
+use openpol::{audio, grafdat, image13h, paldat};
+use sdl2::audio::{AudioDevice, AudioSpecDesired};
 use sdl2::event::Event;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
-use std::cmp;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -16,29 +15,6 @@ const VERSION: &str = env!("GIT_DESCRIPTION");
 fn main() -> Result<(), String> {
     let mut game = Game::new()?;
     game.run()
-}
-
-struct Audio {
-    data: Vec<u8>,
-    position: usize,
-    silence: u8,
-}
-
-impl AudioCallback for Audio {
-    type Channel = u8;
-
-    fn callback(&mut self, out: &mut [u8]) {
-        let to_buffer = cmp::min(out.len(), self.data.len() - self.position);
-        out[..to_buffer].copy_from_slice(&self.data[self.position..self.position + to_buffer]);
-        self.position += to_buffer;
-        // TODO repeat the audio just like we repeat the video. Going silent after the first play
-        // for now.
-        if self.position == self.data.len() {
-            for x in out[to_buffer..].iter_mut() {
-                *x = self.silence;
-            }
-        }
-    }
 }
 
 struct Game {
@@ -107,7 +83,7 @@ impl Game {
             samples: None,
         };
 
-        let mut audio_device = audio.open_playback(None, &desired_spec, |spec| Audio {
+        let mut audio_device = audio.open_playback(None, &desired_spec, |spec| audio::Audio {
             data: Vec::new(),
             position: 0,
             silence: spec.silence,
@@ -129,7 +105,7 @@ impl Game {
         timer: &mut TimerSubsystem,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
-        audio_device: &mut AudioDevice<Audio>,
+        audio_device: &mut AudioDevice<audio::Audio>,
     ) -> Result<(), String> {
         let mut intro = Intro::new(&self.data_dir)?;
 
@@ -205,7 +181,7 @@ impl<'a> Intro<'a> {
         })
     }
 
-    pub fn update(&mut self, ticks: u32, audio_device: &mut AudioDevice<Audio>) {
+    pub fn update(&mut self, ticks: u32, audio_device: &mut AudioDevice<audio::Audio>) {
         let flic = match &mut self.flic {
             None => match self.current_intro {
                 i @ 0..=2 => {
@@ -277,21 +253,15 @@ impl<'a> Intro<'a> {
         self.running && self.current_intro < 3
     }
 
-    pub fn stop(&mut self, audio_device: &mut AudioDevice<Audio>) {
+    pub fn stop(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
         self.running = false;
-        clear_audio(audio_device);
+        audio::clear_audio(audio_device);
     }
 
-    pub fn next(&mut self, audio_device: &mut AudioDevice<Audio>) {
+    pub fn next(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
         self.since_last_render = 0;
         self.flic = None;
         self.current_intro += 1;
-        clear_audio(audio_device);
+        audio::clear_audio(audio_device);
     }
-}
-
-fn clear_audio(audio_device: &mut AudioDevice<Audio>) {
-    let mut audio_lock = audio_device.lock();
-    audio_lock.data = Vec::new();
-    audio_lock.position = 0;
 }
