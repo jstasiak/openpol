@@ -144,7 +144,7 @@ impl Grafdat {
             vec![image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1); IMAGES];
         let rects = get_image_rects();
         for ((image_index, rect), item) in rects.iter().zip(self.items.iter()) {
-            images[*image_index].blit(item, rect);
+            images[*image_index].blit(item, rect.left, rect.top);
         }
         images
     }

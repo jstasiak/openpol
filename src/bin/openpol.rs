@@ -160,7 +160,7 @@ impl Game {
 
         let mut game_running = true;
         self.palette[..].copy_from_slice(self.paldat.palette_data(2));
-        self.screen.blit_whole(self.grafdat.main_menu(), 0, 0);
+        self.screen.blit(self.grafdat.main_menu(), 0, 0);
         while game_running {
             for event in event_pump.poll_iter() {
                 match event {
