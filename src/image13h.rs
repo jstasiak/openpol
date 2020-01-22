@@ -150,22 +150,14 @@ impl Image13h {
         subimage
     }
 
-    /// Blit another image into a rect in this image. The width and height of `image` and `rect`
-    /// need to be the same.
-    pub fn blit(&mut self, image: &Image13h, rect: &Rect) {
-        for (src_line, dst_line) in (rect.top..rect.beyond_bottom()).enumerate() {
-            self.mut_line(dst_line)[rect.left..rect.beyond_right()]
-                .copy_from_slice(image.line(src_line));
-        }
-    }
-
     /// Blit whole aother image into this image. The width and height of the other image needs to
     /// be at most the width and height of this image.
-    pub fn blit_whole(&mut self, image: &Image13h, x: usize, y: usize) {
-        self.blit(
-            image,
-            &Rect::from_ranges(x..x + image.width(), y..y + image.height()),
-        );
+    pub fn blit(&mut self, image: &Image13h, x: usize, y: usize) {
+        for (src_line_index, dst_line_index) in (y..y + image.height()).enumerate() {
+            let dst_line = self.mut_line(dst_line_index);
+            let src_line = image.line(src_line_index);
+            dst_line[x..x + image.width()].copy_from_slice(src_line);
+        }
     }
 
     /// Fill the image with a color.
@@ -312,7 +304,7 @@ mod tests {
         let mut main_image = Image13h::empty(3, 2);
         let mut subimage = Image13h::empty(2, 1);
         subimage.fill(1);
-        main_image.blit(&subimage, &Rect::from_ranges(1..3, 1..2));
+        main_image.blit(&subimage, 1, 1);
         let mut expected_image = Image13h::empty(3, 2);
         expected_image.mut_line(1)[1..3].copy_from_slice(&[1, 1]);
         assert_eq!(main_image, expected_image);

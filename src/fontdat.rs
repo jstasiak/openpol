@@ -96,7 +96,7 @@ impl Fontdat {
             image13h::Image13h::empty(MINIMUM_IMAGE_DIMENSIONS.0, MINIMUM_IMAGE_DIMENSIONS.1);
         for character in 0..CHARACTERS {
             let rect = character_rect(character);
-            image.blit(&self.glyphs[character], &rect);
+            image.blit(&self.glyphs[character], rect.left, rect.top);
         }
         image.save(writer);
     }
