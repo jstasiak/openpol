@@ -13,7 +13,7 @@ use std::path;
 const VERSION: &str = env!("GIT_DESCRIPTION");
 
 fn main() -> Result<(), String> {
-    let mut game = Game::new()?;
+    let game = Game::new()?;
     game.run()
 }
 
@@ -45,7 +45,7 @@ impl Game {
         })
     }
 
-    pub fn run(&mut self) -> Result<(), String> {
+    pub fn run(self) -> Result<(), String> {
         let sdl = sdl2::init()?;
         let video = sdl.video()?;
         let window = video
@@ -100,75 +100,74 @@ impl Game {
     }
 
     fn event_loop(
-        &mut self,
+        mut self,
         event_pump: &mut EventPump,
         timer: &mut TimerSubsystem,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
         audio_device: &mut AudioDevice<audio::Audio>,
     ) -> Result<(), String> {
-        let mut intro = Intro::new(&self.data_dir)?;
-
         let mut last_render = timer.ticks();
-        while intro.running() {
+        let mut behavior: Box<dyn Behavior> = Box::new(Intro::new(self.data_dir.clone()).unwrap());
+        let mut running = true;
+        while running {
+            let mut button_pressed = false;
             // get the inputs here
             for event in event_pump.poll_iter() {
                 match event {
-                    Event::Quit { .. } => intro.stop(audio_device),
-                    Event::KeyDown { .. } => intro.next(audio_device),
+                    Event::Quit { .. } => {
+                        running = false;
+                    }
+                    Event::KeyDown { .. } => {
+                        button_pressed = true;
+                    }
                     _ => (),
                 }
             }
             let now = timer.ticks();
             let dt = now - last_render;
             last_render = now;
-            intro.update(dt, audio_device);
-
-            // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
-            // holes between rows in the buffer.
-            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                intro.display(buffer)
-            })?;
-            canvas.clear();
-            canvas.copy(&texture, None, None)?;
-            canvas.present();
-        }
-
-        let mut game_running = true;
-        self.palette[..].copy_from_slice(self.paldat.palette_data(2));
-        self.screen.blit(self.grafdat.main_menu(), 0, 0);
-        while game_running {
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. } => game_running = false,
-                    Event::KeyDown { .. } => game_running = false,
-                    _ => (),
-                }
+            if let Some(new_behavior) = behavior.update(&mut self, button_pressed, dt, audio_device)
+            {
+                behavior = new_behavior;
+            } else {
+                // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
+                // holes between rows in the buffer.
+                texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                    behavior.display(&mut self, buffer)
+                })?;
+                canvas.clear();
+                canvas.copy(&texture, None, None)?;
+                canvas.present();
             }
-            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                image13h::indices_to_rgb(self.screen.data(), &self.palette, buffer);
-            })?;
-            canvas.clear();
-            canvas.copy(&texture, None, None)?;
-            canvas.present();
         }
         Ok(())
     }
 }
 
-struct Intro<'a> {
+trait Behavior {
+    fn update(
+        &mut self,
+        game: &mut Game,
+        button_pressed: bool,
+        ticks: u32,
+        audio_device: &mut AudioDevice<audio::Audio>,
+    ) -> Option<Box<dyn Behavior>>;
+    fn display(&mut self, game: &mut Game, buffer: &mut [u8]);
+}
+
+struct Intro {
     flic: Option<FlicFile>,
     since_last_render: u32,
     flic_buffer: Vec<u8>,
     flic_palette: Vec<u8>,
-    data_dir: &'a path::Path,
+    data_dir: path::PathBuf,
     buffer_changed: bool,
     current_intro: u8,
-    running: bool,
 }
 
-impl<'a> Intro<'a> {
-    pub fn new(data_dir: &'a path::Path) -> Result<Intro<'a>, String> {
+impl Intro {
+    pub fn new(data_dir: path::PathBuf) -> Result<Intro, String> {
         Ok(Intro {
             flic: None,
             since_last_render: 0,
@@ -177,11 +176,29 @@ impl<'a> Intro<'a> {
             data_dir,
             buffer_changed: false,
             current_intro: 0,
-            running: true,
         })
     }
 
-    pub fn update(&mut self, ticks: u32, audio_device: &mut AudioDevice<audio::Audio>) {
+    pub fn next(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
+        self.since_last_render = 0;
+        self.flic = None;
+        self.current_intro += 1;
+        audio::clear_audio(audio_device);
+    }
+}
+
+impl Behavior for Intro {
+    fn update(
+        &mut self,
+        _game: &mut Game,
+        button_pressed: bool,
+        ticks: u32,
+        audio_device: &mut AudioDevice<audio::Audio>,
+    ) -> Option<Box<dyn Behavior>> {
+        if button_pressed {
+            self.next(audio_device);
+        }
+
         let flic = match &mut self.flic {
             None => match self.current_intro {
                 i @ 0..=2 => {
@@ -213,7 +230,7 @@ impl<'a> Intro<'a> {
 
                     self.flic.as_mut().unwrap()
                 }
-                _ => return,
+                _ => return Some(Box::new(MainMenu {})),
             },
             Some(flic) => flic,
         };
@@ -234,34 +251,41 @@ impl<'a> Intro<'a> {
                 let playback_result = flic.read_next_frame(&mut raster).unwrap();
                 if playback_result.ended {
                     self.next(audio_device);
-                    return;
+                    return Some(Box::new(MainMenu {}));
                 } else {
                     self.since_last_render -= ms_per_frame;
                 }
             }
         }
+        None
     }
 
-    pub fn display(&mut self, buffer: &mut [u8]) {
+    fn display(&mut self, _game: &mut Game, buffer: &mut [u8]) {
         if self.buffer_changed {
             image13h::indices_to_rgb(&self.flic_buffer, &self.flic_palette, buffer);
             self.buffer_changed = false;
         }
     }
+}
 
-    pub fn running(&self) -> bool {
-        self.running && self.current_intro < 3
+struct MainMenu {}
+
+impl Behavior for MainMenu {
+    fn update(
+        &mut self,
+        game: &mut Game,
+        _button_pressed: bool,
+        _ticks: u32,
+        _audio_device: &mut AudioDevice<audio::Audio>,
+    ) -> Option<Box<dyn Behavior>> {
+        // TODO stop copying every frame
+        game.palette[..].copy_from_slice(game.paldat.palette_data(2));
+        game.screen.blit(game.grafdat.main_menu(), 0, 0);
+        None
     }
 
-    pub fn stop(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
-        self.running = false;
-        audio::clear_audio(audio_device);
-    }
-
-    pub fn next(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
-        self.since_last_render = 0;
-        self.flic = None;
-        self.current_intro += 1;
-        audio::clear_audio(audio_device);
+    fn display(&mut self, game: &mut Game, buffer: &mut [u8]) {
+        // TODO Stop converting and copying data every frame unnecessarily
+        image13h::indices_to_rgb(game.screen.data(), &game.palette, buffer);
     }
 }
