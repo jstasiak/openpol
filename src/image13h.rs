@@ -160,6 +160,21 @@ impl Image13h {
         }
     }
 
+    /// Like `blit`, but pixels with color value 0 are not transferred. The original game
+    /// uses color 0 to mean transparency.
+    pub fn blit_with_transparency(&mut self, image: &Image13h, x: usize, y: usize) {
+        for (src_line_index, dst_line_index) in (y..y + image.height()).enumerate() {
+            let dst_line = self.mut_line(dst_line_index);
+            let src_line = image.line(src_line_index);
+            for (src_column_index, dst_column_index) in (x..x + image.width()).enumerate() {
+                let pixel = src_line[src_column_index];
+                if pixel != 0 {
+                    dst_line[dst_column_index] = pixel;
+                }
+            }
+        }
+    }
+
     /// Fill the image with a color.
     pub fn fill(&mut self, color: u8) {
         let len = self.data.len();
@@ -308,6 +323,18 @@ mod tests {
         let mut expected_image = Image13h::empty(3, 2);
         expected_image.mut_line(1)[1..3].copy_from_slice(&[1, 1]);
         assert_eq!(main_image, expected_image);
+    }
+
+    #[test]
+    fn test_blit_with_transparency_works() {
+        let mut main_image = Image13h::filled_with_color(4, 4, 9);
+        let mut src_image = Image13h::empty(2, 2);
+        src_image.data_mut().copy_from_slice(&[0, 1, 1, 0]);
+        main_image.blit_with_transparency(&src_image, 1, 1);
+        assert_eq!(
+            main_image.data(),
+            &[9, 9, 9, 9, 9, 9, 1, 9, 9, 1, 9, 9, 9, 9, 9, 9],
+        );
     }
 
     #[test]
