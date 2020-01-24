@@ -21,8 +21,6 @@ struct Game {
     data_dir: path::PathBuf,
     grafdat: grafdat::Grafdat,
     paldat: paldat::Paldat,
-    screen: image13h::Image13h,
-    palette: Vec<u8>,
 }
 
 impl Game {
@@ -40,8 +38,6 @@ impl Game {
                 .unwrap(),
             grafdat: grafdat::Grafdat::load(fs::File::open(root_dir.join("graf.dat")).unwrap())
                 .unwrap(),
-            screen: image13h::Image13h::empty_screen_sized(),
-            palette: vec![0; paldat::PALETTE_SIZE_IN_BYTES],
         })
     }
 
@@ -271,10 +267,10 @@ impl Behavior for MainMenu {
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         // TODO stop copying every frame
-        game.palette[..].copy_from_slice(game.paldat.palette_data(2));
-        game.screen.blit(game.grafdat.main_menu(), 0, 0);
+        let mut screen = image13h::Image13h::empty_screen_sized();
+        screen.blit(game.grafdat.main_menu(), 0, 0);
         // TODO Stop converting and copying data every frame unnecessarily
-        image13h::indices_to_rgb(game.screen.data(), &game.palette, buffer);
+        image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None
     }
 }
