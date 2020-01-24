@@ -127,19 +127,18 @@ impl Game {
             let now = timer.ticks();
             let dt = now - last_render;
             last_render = now;
-            if let Some(new_behavior) = behavior.update(&mut self, button_pressed, dt, audio_device)
-            {
-                behavior = new_behavior;
-            } else {
-                // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
-                // holes between rows in the buffer.
-                texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                    behavior.display(&mut self, buffer)
-                })?;
-                canvas.clear();
-                canvas.copy(&texture, None, None)?;
-                canvas.present();
-            }
+            // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
+            // holes between rows in the buffer.
+            texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
+                if let Some(new_behavior) =
+                    behavior.update(&mut self, button_pressed, dt, audio_device, buffer)
+                {
+                    behavior = new_behavior;
+                }
+            })?;
+            canvas.clear();
+            canvas.copy(&texture, None, None)?;
+            canvas.present();
         }
         Ok(())
     }
@@ -152,8 +151,8 @@ trait Behavior {
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
+        buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>>;
-    fn display(&mut self, game: &mut Game, buffer: &mut [u8]);
 }
 
 struct Intro {
@@ -162,7 +161,6 @@ struct Intro {
     flic_buffer: Vec<u8>,
     flic_palette: Vec<u8>,
     data_dir: path::PathBuf,
-    buffer_changed: bool,
     current_intro: u8,
 }
 
@@ -174,7 +172,6 @@ impl Intro {
             flic_buffer: vec![0; image13h::SCREEN_PIXELS],
             flic_palette: vec![0; 3 * image13h::COLORS],
             data_dir,
-            buffer_changed: false,
             current_intro: 0,
         })
     }
@@ -194,6 +191,7 @@ impl Behavior for Intro {
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
+        buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         if button_pressed {
             self.next(audio_device);
@@ -240,7 +238,6 @@ impl Behavior for Intro {
         self.since_last_render += ticks;
         let buffer_changed = self.since_last_render >= ms_per_frame;
         if buffer_changed {
-            self.buffer_changed = true;
             let mut raster = RasterMut::new(
                 image13h::SCREEN_WIDTH,
                 image13h::SCREEN_HEIGHT,
@@ -256,15 +253,9 @@ impl Behavior for Intro {
                     self.since_last_render -= ms_per_frame;
                 }
             }
+            image13h::indices_to_rgb(&self.flic_buffer, &self.flic_palette, buffer);
         }
         None
-    }
-
-    fn display(&mut self, _game: &mut Game, buffer: &mut [u8]) {
-        if self.buffer_changed {
-            image13h::indices_to_rgb(&self.flic_buffer, &self.flic_palette, buffer);
-            self.buffer_changed = false;
-        }
     }
 }
 
@@ -277,15 +268,13 @@ impl Behavior for MainMenu {
         _button_pressed: bool,
         _ticks: u32,
         _audio_device: &mut AudioDevice<audio::Audio>,
+        buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         // TODO stop copying every frame
         game.palette[..].copy_from_slice(game.paldat.palette_data(2));
         game.screen.blit(game.grafdat.main_menu(), 0, 0);
-        None
-    }
-
-    fn display(&mut self, game: &mut Game, buffer: &mut [u8]) {
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(game.screen.data(), &game.palette, buffer);
+        None
     }
 }
