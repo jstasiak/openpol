@@ -25,7 +25,17 @@ pub const IMAGE_DIMENSIONS: (usize, usize) = (319, 199);
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Grafdat {
-    items: Vec<image13h::Image13h>,
+    mouse: Vec<image13h::Image13h>,
+    buttons: Vec<image13h::Image13h>,
+    trees: Vec<image13h::Image13h>,
+    dead: Vec<image13h::Image13h>,
+    hit: Vec<image13h::Image13h>,
+    pictures: Vec<image13h::Image13h>,
+    fire: Vec<image13h::Image13h>,
+    borders: Vec<image13h::Image13h>,
+    wood: Vec<image13h::Image13h>,
+    second_buttons: Vec<image13h::Image13h>,
+    screens: Vec<image13h::Image13h>,
 }
 
 impl Grafdat {
@@ -83,13 +93,34 @@ impl Grafdat {
             assert_eq!(i.width(), IMAGE_DIMENSIONS.0);
             assert_eq!(i.height(), IMAGE_DIMENSIONS.1);
         }
-        let rects = get_image_rects();
-
+        let subimages = get_image_rects()
+            .into_iter()
+            .map(|(index, rect)| images[index].subimage(&rect))
+            .collect::<Vec<_>>();
+        let mut mouse = subimages;
+        let mut buttons = mouse.split_off(12);
+        let mut trees = buttons.split_off(16);
+        let mut dead = trees.split_off(16);
+        let mut hit = dead.split_off(3);
+        let mut pictures = hit.split_off(2);
+        let mut fire = pictures.split_off(284);
+        let mut borders = fire.split_off(14);
+        let mut wood = borders.split_off(4);
+        let mut second_buttons = wood.split_off(3);
+        let screens = second_buttons.split_off(4);
+        assert_eq!(screens.len(), 1);
         Grafdat {
-            items: rects
-                .into_iter()
-                .map(|(index, rect)| images[index].subimage(&rect))
-                .collect(),
+            mouse,
+            buttons,
+            trees,
+            dead,
+            hit,
+            pictures,
+            fire,
+            borders,
+            wood,
+            second_buttons,
+            screens,
         }
     }
 
@@ -143,26 +174,28 @@ impl Grafdat {
         let mut images =
             vec![image13h::Image13h::empty(IMAGE_DIMENSIONS.0, IMAGE_DIMENSIONS.1); IMAGES];
         let rects = get_image_rects();
-        for ((image_index, rect), item) in rects.iter().zip(self.items.iter()) {
+        let items = self
+            .mouse
+            .iter()
+            .chain(self.buttons.iter())
+            .chain(self.trees.iter())
+            .chain(self.dead.iter())
+            .chain(self.hit.iter())
+            .chain(self.pictures.iter())
+            .chain(self.fire.iter())
+            .chain(self.borders.iter())
+            .chain(self.wood.iter())
+            .chain(self.second_buttons.iter())
+            .chain(self.screens.iter());
+
+        for ((image_index, rect), item) in rects.iter().zip(items) {
             images[*image_index].blit(item, rect.left, rect.top);
         }
         images
     }
 
-    /// Get a reference to the Grafdat items
-    pub fn items(&self) -> &[image13h::Image13h] {
-        &self.items
-    }
-
-    /// Get a mutable reference to the Grafdat items
-    pub fn items_mut(&mut self) -> &mut [image13h::Image13h] {
-        &mut self.items
-    }
-
     pub fn main_menu(&self) -> &image13h::Image13h {
-        // TODO think about addressing the problem of addressing the image pieces within the items
-        // vector. Maybe change that to a record of some sort?
-        self.items.last().unwrap()
+        &self.screens[0]
     }
 }
 
@@ -240,7 +273,7 @@ fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
         .chain((0..7).map(|i| (3, (11 + 32 * i, 8 + (7 * 14), 43 + 32 * i, 8 + (8 * 14)))))
         // Buildings being built 127..136
         .chain((0..9).map(|i| (7, (i * 16, 12 * 14, (i + 1) * 16, 13 * 14))))
-        // NOTE: 1-element hole here
+        // NOTE: 1-element hole here, since the dummy element
         .chain(vec![(3, (0, 0, 1, 1))])
         // Buildings 137..257
         .chain((0..6).flat_map(|j| {
