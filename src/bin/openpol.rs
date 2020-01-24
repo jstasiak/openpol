@@ -143,7 +143,7 @@ impl Game {
 trait Behavior {
     fn update(
         &mut self,
-        game: &mut Game,
+        game: &Game,
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
@@ -183,7 +183,7 @@ impl Intro {
 impl Behavior for Intro {
     fn update(
         &mut self,
-        _game: &mut Game,
+        _game: &Game,
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
@@ -260,7 +260,7 @@ struct MainMenu {}
 impl Behavior for MainMenu {
     fn update(
         &mut self,
-        game: &mut Game,
+        game: &Game,
         _button_pressed: bool,
         _ticks: u32,
         _audio_device: &mut AudioDevice<audio::Audio>,
