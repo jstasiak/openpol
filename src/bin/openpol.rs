@@ -5,6 +5,7 @@ use sdl2::event::Event;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
+use std::cmp;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -44,6 +45,9 @@ impl Game {
     pub fn run(self) -> Result<(), String> {
         let sdl = sdl2::init()?;
         let video = sdl.video()?;
+        // This show_cursor() call needs to happen *after* the video subsystem is initialized,
+        // otherwise it'll silently do nothing.
+        sdl.mouse().show_cursor(false);
         let window = video
             .window(
                 &format!("openpol {}", VERSION),
@@ -106,6 +110,9 @@ impl Game {
         let mut last_render = timer.ticks();
         let mut behavior: Box<dyn Behavior> = Box::new(Intro::new(self.data_dir.clone()).unwrap());
         let mut running = true;
+        let mut input = Input {
+            mouse_position: (0, 0),
+        };
         while running {
             let mut button_pressed = false;
             // get the inputs here
@@ -117,6 +124,11 @@ impl Game {
                     Event::KeyDown { .. } => {
                         button_pressed = true;
                     }
+                    Event::MouseMotion { x, y, .. } => {
+                        // We currently have to divide the coordinates by two, because we
+                        // scale the screen to be double the game's original resolution.
+                        input.mouse_position = (x as usize / 2, y as usize / 2);
+                    }
                     _ => (),
                 }
             }
@@ -127,7 +139,7 @@ impl Game {
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
                 if let Some(new_behavior) =
-                    behavior.update(&mut self, button_pressed, dt, audio_device, buffer)
+                    behavior.update(&mut self, button_pressed, dt, audio_device, &input, buffer)
                 {
                     behavior = new_behavior;
                 }
@@ -147,8 +159,13 @@ trait Behavior {
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
+        input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>>;
+}
+
+struct Input {
+    pub mouse_position: (usize, usize),
 }
 
 struct Intro {
@@ -187,6 +204,7 @@ impl Behavior for Intro {
         button_pressed: bool,
         ticks: u32,
         audio_device: &mut AudioDevice<audio::Audio>,
+        _input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         if button_pressed {
@@ -264,11 +282,28 @@ impl Behavior for MainMenu {
         _button_pressed: bool,
         _ticks: u32,
         _audio_device: &mut AudioDevice<audio::Audio>,
+        input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         // TODO stop copying every frame
         let mut screen = image13h::Image13h::empty_screen_sized();
         screen.blit(game.grafdat.main_menu(), 0, 0);
+        // Yes, the main menu cursor image comes from the buttons image array.
+        let cursor = game.grafdat.button(6);
+        screen.blit_with_transparency(
+            cursor,
+            // TODO Implement blitting that handles the source image crossing the destination image
+            // boundary gracefully. We need this to display the cursor correctly near the right and
+            // bottom borders. Clipping the blitting coordinates for now but it's a hack.
+            cmp::min(
+                image13h::SCREEN_WIDTH - cursor.width(),
+                input.mouse_position.0,
+            ),
+            cmp::min(
+                image13h::SCREEN_HEIGHT - cursor.height(),
+                input.mouse_position.1,
+            ),
+        );
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None
