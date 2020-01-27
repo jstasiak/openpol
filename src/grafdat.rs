@@ -198,6 +198,14 @@ impl Grafdat {
         &self.screens[0]
     }
 
+    pub fn mouse(&self, index: usize) -> &image13h::Image13h {
+        // In the original game there's an array of mouse cursor images. The array's 0-th element
+        // is used to store the screen under the mouse cursor so that, when the cursor is moved
+        // somewhere else, that piece of screen is restored. This makes the array effectively
+        // 1-based, hence the "+ 1" here.
+        &self.mouse[index + 1]
+    }
+
     pub fn button(&self, index: usize) -> &image13h::Image13h {
         &self.buttons[index]
     }
