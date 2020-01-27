@@ -197,6 +197,10 @@ impl Grafdat {
     pub fn main_menu(&self) -> &image13h::Image13h {
         &self.screens[0]
     }
+
+    pub fn button(&self, index: usize) -> &image13h::Image13h {
+        &self.buttons[index]
+    }
 }
 
 fn get_image_rects() -> Vec<(usize, image13h::Rect)> {
