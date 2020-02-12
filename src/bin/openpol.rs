@@ -34,7 +34,7 @@ impl Game {
         let data_dir = root_dir.join("data");
 
         Ok(Game {
-            data_dir: data_dir.to_path_buf(),
+            data_dir: data_dir,
             paldat: paldat::Paldat::load(fs::File::open(root_dir.join("pal.dat")).unwrap())
                 .unwrap(),
             grafdat: grafdat::Grafdat::load(fs::File::open(root_dir.join("graf.dat")).unwrap())
