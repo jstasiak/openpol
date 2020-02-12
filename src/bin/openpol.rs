@@ -100,7 +100,7 @@ impl Game {
     }
 
     fn event_loop(
-        mut self,
+        self,
         event_pump: &mut EventPump,
         timer: &mut TimerSubsystem,
         canvas: &mut WindowCanvas,
@@ -139,7 +139,7 @@ impl Game {
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
                 if let Some(new_behavior) =
-                    behavior.update(&mut self, button_pressed, dt, audio_device, &input, buffer)
+                    behavior.update(&self, button_pressed, dt, audio_device, &input, buffer)
                 {
                     behavior = new_behavior;
                 }
