@@ -1,6 +1,7 @@
 use flic::{FlicFile, RasterMut};
 use openpol::{grafdat, image13h, paldat};
 use sdl2::event::Event;
+use sdl2::get_error;
 use sdl2::mixer;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
@@ -337,13 +338,17 @@ impl Behavior for MainMenu {
                 input.mouse_position.1,
             ),
         );
+
+        if button_pressed {
+            mixer::Channel::all().play(&game.sounds[1], 0).unwrap();
+        }
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None
     }
 }
 
-fn buffer_into_chunk(buffer: Box<[u8]>) -> mixer::Chunk {
+fn buffer_into_chunk(buffer: Box<[u8]>) -> Result<mixer::Chunk, String> {
     let len = buffer.len();
     let mut raw = unsafe {
         sdl2_sys::mixer::Mix_QuickLoad_RAW(
@@ -351,15 +356,19 @@ fn buffer_into_chunk(buffer: Box<[u8]>) -> mixer::Chunk {
             len.try_into().unwrap(),
         )
     };
-    // allocated set to 1 makes SDL believe it allocated the memory for the chunk, so, when we drop
-    // the Chunk, SDL_FreeChunk will be called and it'll deallocate the memory. I believe this is
-    // fine, as long as free() is enough to deallocate Box<[u8]> (no special routines to call) and
-    // SDL uses the same allocator as Rust does (few tests confirm that).
-    unsafe {
-        (*raw).allocated = 1;
-    }
-    mixer::Chunk {
-        raw: raw,
-        owned: true,
+    if raw.is_null() {
+        return Err(get_error());
+    } else {
+        // allocated set to 1 makes SDL believe it allocated the memory for the chunk, so, when we drop
+        // the Chunk, SDL_FreeChunk will be called and it'll deallocate the memory. I believe this is
+        // fine, as long as free() is enough to deallocate Box<[u8]> (no special routines to call) and
+        // SDL uses the same allocator as Rust does (few tests confirm that).
+        unsafe {
+            (*raw).allocated = 1;
+        }
+        return Ok(mixer::Chunk {
+            raw: raw,
+            owned: true,
+        });
     }
 }
