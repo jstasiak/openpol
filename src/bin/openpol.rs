@@ -262,7 +262,7 @@ impl Behavior for Intro {
                 let playback_result = flic.read_next_frame(&mut raster).unwrap();
                 if playback_result.ended {
                     self.next(audio_device);
-                    return Some(Box::new(MainMenu {}));
+                    return None;
                 } else {
                     self.since_last_render -= ms_per_frame;
                 }
