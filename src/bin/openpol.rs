@@ -21,9 +21,41 @@ fn main() -> Result<(), String> {
 }
 
 struct Game {
+    root_dir: path::PathBuf,
     data_dir: path::PathBuf,
     grafdat: grafdat::Grafdat,
     paldat: paldat::Paldat,
+    music: Option<mixer::Music<'static>>,
+}
+
+impl Game {
+    /// Play music track. Music files are expected to be named trackX.ogg and be placed in the
+    /// music subdirectory of root game directory (X is the track number). In order to gracefully
+    /// handle missing music files we simply print an error message to stderr when we can't play
+    /// a track. Note that music previously played (if any) is stopped regardless of the success.
+    ///
+    /// Track numbers are 1-based to keep the same numbering scheme as the original game.
+    pub fn play_music_maybe(&mut self, track: usize) {
+        let file_path = self
+            .root_dir
+            .join("music")
+            .join(format!("track{}.ogg", track));
+        if file_path.is_file() {
+            match mixer::Music::from_file(&file_path) {
+                Ok(music) => {
+                    music.play(-1).unwrap();
+                    self.music = Some(music);
+                }
+                Err(e) => {
+                    self.music = None;
+                    eprintln!("Cannot load music from {:?}: {}", file_path, e);
+                }
+            }
+        } else {
+            self.music = None;
+            eprintln!("Music file {:?} not found", file_path);
+        }
+    }
 }
 
 impl Game {
@@ -36,7 +68,9 @@ impl Game {
         let data_dir = root_dir.join("data");
 
         Ok(Game {
+            root_dir: root_dir.to_path_buf(),
             data_dir: data_dir,
+            music: None,
             paldat: paldat::Paldat::load(fs::File::open(root_dir.join("pal.dat")).unwrap())
                 .unwrap(),
             grafdat: grafdat::Grafdat::load(fs::File::open(root_dir.join("graf.dat")).unwrap())
@@ -87,7 +121,7 @@ impl Game {
     }
 
     fn event_loop(
-        self,
+        mut self,
         event_pump: &mut EventPump,
         timer: &mut TimerSubsystem,
         canvas: &mut WindowCanvas,
@@ -125,7 +159,7 @@ impl Game {
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
                 if let Some(new_behavior) =
-                    behavior.update(&self, button_pressed, dt, &input, buffer)
+                    behavior.update(&mut self, button_pressed, dt, &input, buffer)
                 {
                     behavior = new_behavior;
                 }
@@ -141,7 +175,7 @@ impl Game {
 trait Behavior {
     fn update(
         &mut self,
-        game: &Game,
+        game: &mut Game,
         button_pressed: bool,
         ticks: u32,
         input: &Input,
@@ -187,7 +221,7 @@ impl Intro {
 impl Behavior for Intro {
     fn update(
         &mut self,
-        _game: &Game,
+        _game: &mut Game,
         button_pressed: bool,
         ticks: u32,
         _input: &Input,
@@ -228,7 +262,7 @@ impl Behavior for Intro {
 
                     self.flic.as_mut().unwrap()
                 }
-                _ => return Some(Box::new(MainMenu {})),
+                _ => return Some(Box::new(MainMenu::new())),
             },
             Some(flic) => flic,
         };
@@ -259,17 +293,31 @@ impl Behavior for Intro {
     }
 }
 
-struct MainMenu {}
+struct MainMenu {
+    music_playing: bool,
+}
+
+impl MainMenu {
+    pub fn new() -> MainMenu {
+        MainMenu {
+            music_playing: false,
+        }
+    }
+}
 
 impl Behavior for MainMenu {
     fn update(
         &mut self,
-        game: &Game,
+        game: &mut Game,
         _button_pressed: bool,
         _ticks: u32,
         input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
+        if !self.music_playing {
+            game.play_music_maybe(2);
+            self.music_playing = true;
+        }
         // TODO stop copying every frame
         let mut screen = image13h::Image13h::empty_screen_sized();
         screen.blit(game.grafdat.main_menu(), 0, 0);
