@@ -1,11 +1,13 @@
 use flic::{FlicFile, RasterMut};
-use openpol::{audio, grafdat, image13h, paldat};
-use sdl2::audio::{AudioDevice, AudioSpecDesired};
+use openpol::{grafdat, image13h, paldat};
 use sdl2::event::Event;
+use sdl2::mixer;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
+use sdl2_sys;
 use std::cmp;
+use std::convert::TryInto;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
@@ -76,27 +78,12 @@ impl Game {
             .map_err(|e| e.to_string())?;
 
         let mut timer = sdl.timer()?;
-        let audio = sdl.audio()?;
-        let desired_spec = AudioSpecDesired {
-            freq: Some(22_050),
-            channels: Some(1),
-            samples: None,
-        };
+        mixer::open_audio(22_050, mixer::AUDIO_U8, 1, 1_024)?;
+        mixer::init(mixer::InitFlag::OGG)?;
+        // 16 is a semi-random number here
+        mixer::allocate_channels(16);
 
-        let mut audio_device = audio.open_playback(None, &desired_spec, |spec| audio::Audio {
-            data: Vec::new(),
-            position: 0,
-            silence: spec.silence,
-        })?;
-        audio_device.resume();
-
-        self.event_loop(
-            &mut event_pump,
-            &mut timer,
-            &mut canvas,
-            &mut texture,
-            &mut audio_device,
-        )
+        self.event_loop(&mut event_pump, &mut timer, &mut canvas, &mut texture)
     }
 
     fn event_loop(
@@ -105,7 +92,6 @@ impl Game {
         timer: &mut TimerSubsystem,
         canvas: &mut WindowCanvas,
         texture: &mut Texture,
-        audio_device: &mut AudioDevice<audio::Audio>,
     ) -> Result<(), String> {
         let mut last_render = timer.ticks();
         let mut behavior: Box<dyn Behavior> = Box::new(Intro::new(self.data_dir.clone()).unwrap());
@@ -139,7 +125,7 @@ impl Game {
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
                 if let Some(new_behavior) =
-                    behavior.update(&self, button_pressed, dt, audio_device, &input, buffer)
+                    behavior.update(&self, button_pressed, dt, &input, buffer)
                 {
                     behavior = new_behavior;
                 }
@@ -158,7 +144,6 @@ trait Behavior {
         game: &Game,
         button_pressed: bool,
         ticks: u32,
-        audio_device: &mut AudioDevice<audio::Audio>,
         input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>>;
@@ -170,6 +155,7 @@ struct Input {
 
 struct Intro {
     flic: Option<FlicFile>,
+    chunk: Option<mixer::Chunk>,
     since_last_render: u32,
     flic_buffer: Vec<u8>,
     flic_palette: Vec<u8>,
@@ -181,6 +167,7 @@ impl Intro {
     pub fn new(data_dir: path::PathBuf) -> Result<Intro, String> {
         Ok(Intro {
             flic: None,
+            chunk: None,
             since_last_render: 0,
             flic_buffer: vec![0; image13h::SCREEN_PIXELS],
             flic_palette: vec![0; 3 * image13h::COLORS],
@@ -189,11 +176,11 @@ impl Intro {
         })
     }
 
-    pub fn next(&mut self, audio_device: &mut AudioDevice<audio::Audio>) {
+    pub fn next(&mut self) {
         self.since_last_render = 0;
         self.flic = None;
+        self.chunk = None;
         self.current_intro += 1;
-        audio::clear_audio(audio_device);
     }
 }
 
@@ -203,12 +190,11 @@ impl Behavior for Intro {
         _game: &Game,
         button_pressed: bool,
         ticks: u32,
-        audio_device: &mut AudioDevice<audio::Audio>,
         _input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
         if button_pressed {
-            self.next(audio_device);
+            self.next();
         }
 
         let flic = match &mut self.flic {
@@ -234,9 +220,9 @@ impl Behavior for Intro {
                             audio_file.read_to_end(&mut audio_data).unwrap();
                             assert_eq!(audio_data.len(), expected_len);
 
-                            let mut audio_lock = audio_device.lock();
-                            audio_lock.data = audio_data;
-                            audio_lock.position = 0;
+                            let chunk = buffer_into_chunk(audio_data.into_boxed_slice());
+                            mixer::Channel::all().play(&chunk, 0).unwrap();
+                            self.chunk = Some(chunk);
                         }
                     };
 
@@ -261,7 +247,7 @@ impl Behavior for Intro {
             while self.since_last_render >= ms_per_frame {
                 let playback_result = flic.read_next_frame(&mut raster).unwrap();
                 if playback_result.ended {
-                    self.next(audio_device);
+                    self.next();
                     return None;
                 } else {
                     self.since_last_render -= ms_per_frame;
@@ -281,7 +267,6 @@ impl Behavior for MainMenu {
         game: &Game,
         _button_pressed: bool,
         _ticks: u32,
-        _audio_device: &mut AudioDevice<audio::Audio>,
         input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
@@ -307,5 +292,26 @@ impl Behavior for MainMenu {
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None
+    }
+}
+
+fn buffer_into_chunk(buffer: Box<[u8]>) -> mixer::Chunk {
+    let len = buffer.len();
+    let mut raw = unsafe {
+        sdl2_sys::mixer::Mix_QuickLoad_RAW(
+            Box::into_raw(buffer) as *mut u8,
+            len.try_into().unwrap(),
+        )
+    };
+    // allocated set to 1 makes SDL believe it allocated the memory for the chunk, so, when we drop
+    // the Chunk, SDL_FreeChunk will be called and it'll deallocate the memory. I believe this is
+    // fine, as long as free() is enough to deallocate Box<[u8]> (no special routines to call) and
+    // SDL uses the same allocator as Rust does (few tests confirm that).
+    unsafe {
+        (*raw).allocated = 1;
+    }
+    mixer::Chunk {
+        raw: raw,
+        owned: true,
     }
 }

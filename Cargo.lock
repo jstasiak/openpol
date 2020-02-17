@@ -41,6 +41,7 @@ version = "0.3.0"
 dependencies = [
  "flic 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sdl2-sys 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
