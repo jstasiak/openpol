@@ -95,6 +95,18 @@ impl Sounddat {
         let offset = self.offsets[sound];
         &self.data[offset..offset + self.sizes[sound]]
     }
+
+    /// Convert the structure into a vector of buffers containing the pieces of data.
+    pub fn into_vecs(self) -> Vec<Vec<u8>> {
+        let mut vecs = Vec::new();
+        let mut rest = self.data;
+        for size in self.sizes {
+            let mut chunk = rest;
+            rest = chunk.split_off(size);
+            vecs.push(chunk);
+        }
+        vecs
+    }
 }
 
 #[cfg(test)]

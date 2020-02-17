@@ -1,5 +1,5 @@
 use flic::{FlicFile, RasterMut};
-use openpol::{grafdat, image13h, paldat};
+use openpol::{grafdat, image13h, paldat, sounddat};
 use sdl2::event::Event;
 use sdl2::get_error;
 use sdl2::mixer;
@@ -27,6 +27,7 @@ struct Game {
     grafdat: grafdat::Grafdat,
     paldat: paldat::Paldat,
     music: Option<mixer::Music<'static>>,
+    sounds: Vec<mixer::Chunk>,
 }
 
 impl Game {
@@ -68,6 +69,12 @@ impl Game {
         let root_dir = path::Path::new(&args[0]);
         let data_dir = root_dir.join("data");
 
+        // This needs to happen before we try to load any music or sound chunks
+        mixer::open_audio(22_050, mixer::AUDIO_U8, 1, 1_024)?;
+        mixer::init(mixer::InitFlag::OGG)?;
+        // 16 is a semi-random number here
+        mixer::allocate_channels(16);
+
         Ok(Game {
             root_dir: root_dir.to_path_buf(),
             data_dir: data_dir,
@@ -76,6 +83,14 @@ impl Game {
                 .unwrap(),
             grafdat: grafdat::Grafdat::load(fs::File::open(root_dir.join("graf.dat")).unwrap())
                 .unwrap(),
+            sounds: sounddat::Sounddat::load(
+                fs::File::open(root_dir.join("data").join("sound.dat")).unwrap(),
+            )
+            .unwrap()
+            .into_vecs()
+            .into_iter()
+            .map(|v| buffer_into_chunk(v.into_boxed_slice()).unwrap())
+            .collect(),
         })
     }
 
@@ -113,10 +128,6 @@ impl Game {
             .map_err(|e| e.to_string())?;
 
         let mut timer = sdl.timer()?;
-        mixer::open_audio(22_050, mixer::AUDIO_U8, 1, 1_024)?;
-        mixer::init(mixer::InitFlag::OGG)?;
-        // 16 is a semi-random number here
-        mixer::allocate_channels(16);
 
         self.event_loop(&mut event_pump, &mut timer, &mut canvas, &mut texture)
     }
@@ -255,7 +266,7 @@ impl Behavior for Intro {
                             audio_file.read_to_end(&mut audio_data).unwrap();
                             assert_eq!(audio_data.len(), expected_len);
 
-                            let chunk = buffer_into_chunk(audio_data.into_boxed_slice());
+                            let chunk = buffer_into_chunk(audio_data.into_boxed_slice()).unwrap();
                             mixer::Channel::all().play(&chunk, 0).unwrap();
                             self.chunk = Some(chunk);
                         }
@@ -310,7 +321,7 @@ impl Behavior for MainMenu {
     fn update(
         &mut self,
         game: &mut Game,
-        _button_pressed: bool,
+        button_pressed: bool,
         _ticks: u32,
         input: &Input,
         buffer: &mut [u8],
@@ -340,7 +351,7 @@ impl Behavior for MainMenu {
         );
 
         if button_pressed {
-            mixer::Channel::all().play(&game.sounds[1], 0).unwrap();
+            mixer::Channel::all().play(&game.sounds[0], 0).unwrap();
         }
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
