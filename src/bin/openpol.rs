@@ -36,7 +36,8 @@ impl Game {
     /// handle missing music files we simply print an error message to stderr when we can't play
     /// a track. Note that music previously played (if any) is stopped regardless of the success.
     ///
-    /// Track numbers are 1-based to keep the same numbering scheme as the original game.
+    /// Track numbers are 2-based (technically 1-based, but the data is the first track on the
+    /// disc, so...) to keep the same numbering scheme as the original game.
     pub fn play_music_maybe(&mut self, track: usize) {
         let file_path = self
             .root_dir
