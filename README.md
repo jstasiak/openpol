@@ -6,6 +6,8 @@ An open source reimplementation of the first Polish RTS video game Polanie (also
 
 Polish: Otwartoźródłowa reimplementacja pierwszej polskiej gry strategicznej Polanie (znanej również pod nazwami VICTORY i OSADNICI).
 
+See https://github.com/jstasiak/polanie-resources for other Polanie resources.
+
 ![Intro screenshot](/screenshots/intro.jpg)
 
 ![Menu screenshot](/screenshots/menu.jpg)
