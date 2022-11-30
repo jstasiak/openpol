@@ -15,7 +15,6 @@ use std::fs::{self, File};
 use std::io::{prelude::*, BufReader};
 use std::path;
 
-
 const VERSION: &str = env!("GIT_DESCRIPTION");
 
 fn main() -> Result<(), String> {
@@ -185,7 +184,6 @@ impl Game {
     }
 }
 
-
 trait Behavior {
     fn update(
         &mut self,
@@ -354,7 +352,9 @@ impl Behavior for MainMenu {
         );
 
         if button_pressed {
-            game.audio_stream_handle.play_raw(game.sounds[0].as_source().convert_samples()).unwrap();
+            game.audio_stream_handle
+                .play_raw(game.sounds[0].as_source().convert_samples())
+                .unwrap();
         }
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
