@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_paldat_loading_works() {
-        let data: Vec<u8> = (0..(768 as u16 * 2)).map(|v| (v >> 3) as u8).collect();
+        let data: Vec<u8> = (0..(768_u16 * 2)).map(|v| (v >> 3) as u8).collect();
         let paldat = Paldat::load(&data[..]).unwrap();
         assert_eq!(paldat.palettes(), 2);
         assert_eq!(paldat.palette_data(0), &data[0..768]);
