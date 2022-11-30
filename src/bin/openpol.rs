@@ -1,17 +1,18 @@
 use flic::{FlicFile, RasterMut};
+use openpol::audio::Sound;
 use openpol::{grafdat, image13h, paldat, sounddat};
+use rodio::Source;
 use sdl2::event::Event;
-use sdl2::get_error;
-use sdl2::mixer;
+
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
 
 use std::cmp;
-use std::convert::TryInto;
+
 use std::env;
-use std::fs;
-use std::io::prelude::*;
+use std::fs::{self, File};
+use std::io::{prelude::*, BufReader};
 use std::path;
 
 const VERSION: &str = env!("GIT_DESCRIPTION");
@@ -26,8 +27,10 @@ struct Game {
     data_dir: path::PathBuf,
     grafdat: grafdat::Grafdat,
     paldat: paldat::Paldat,
-    music: Option<mixer::Music<'static>>,
-    sounds: Vec<mixer::Chunk>,
+    music: Option<rodio::Sink>,
+    audio_stream: rodio::OutputStream,
+    audio_stream_handle: rodio::OutputStreamHandle,
+    sounds: Vec<Sound>,
 }
 
 impl Game {
@@ -43,17 +46,14 @@ impl Game {
             .root_dir
             .join("music")
             .join(format!("track{}.ogg", track));
+
         if file_path.is_file() {
-            match mixer::Music::from_file(&file_path) {
-                Ok(music) => {
-                    music.play(-1).unwrap();
-                    self.music = Some(music);
-                }
-                Err(e) => {
-                    self.music = None;
-                    eprintln!("Cannot load music from {:?}: {}", file_path, e);
-                }
-            }
+            // TODO: Get rid of these unwrap()s
+            let file = BufReader::new(File::open(file_path).unwrap());
+            let source = rodio::Decoder::new(file).unwrap();
+            let sink = rodio::Sink::try_new(&self.audio_stream_handle).unwrap();
+            sink.append(source);
+            self.music = Some(sink)
         } else {
             self.music = None;
             eprintln!("Music file {:?} not found", file_path);
@@ -70,15 +70,14 @@ impl Game {
         let root_dir = path::Path::new(&args[0]);
         let data_dir = root_dir.join("data");
 
-        // This needs to happen before we try to load any music or sound chunks
-        mixer::open_audio(22_050, mixer::AUDIO_U8, 1, 1_024)?;
-        mixer::init(mixer::InitFlag::OGG)?;
-        // 16 is a semi-random number here
-        mixer::allocate_channels(16);
+        let (audio_stream, audio_stream_handle) =
+            rodio::OutputStream::try_default().expect("Cannot open an audio output stream");
 
         Ok(Game {
             root_dir: root_dir.to_path_buf(),
             data_dir,
+            audio_stream,
+            audio_stream_handle,
             music: None,
             paldat: paldat::Paldat::load(fs::File::open(root_dir.join("pal.dat")).unwrap())
                 .unwrap(),
@@ -90,7 +89,7 @@ impl Game {
             .unwrap()
             .into_vecs()
             .into_iter()
-            .map(|v| buffer_into_chunk(v.into_boxed_slice()).unwrap())
+            .map(Sound::new)
             .collect(),
         })
     }
@@ -202,7 +201,7 @@ struct Input {
 
 struct Intro {
     flic: Option<FlicFile>,
-    chunk: Option<mixer::Chunk>,
+    audio_sink: Option<rodio::Sink>,
     since_last_render: u32,
     flic_buffer: Vec<u8>,
     flic_palette: Vec<u8>,
@@ -214,7 +213,7 @@ impl Intro {
     pub fn new(data_dir: path::PathBuf) -> Result<Intro, String> {
         Ok(Intro {
             flic: None,
-            chunk: None,
+            audio_sink: None,
             since_last_render: 0,
             flic_buffer: vec![0; image13h::SCREEN_PIXELS],
             flic_palette: vec![0; 3 * image13h::COLORS],
@@ -226,7 +225,7 @@ impl Intro {
     pub fn next(&mut self) {
         self.since_last_render = 0;
         self.flic = None;
-        self.chunk = None;
+        self.audio_sink = None;
         self.current_intro += 1;
     }
 }
@@ -234,7 +233,7 @@ impl Intro {
 impl Behavior for Intro {
     fn update(
         &mut self,
-        _game: &mut Game,
+        game: &mut Game,
         button_pressed: bool,
         ticks: u32,
         _input: &Input,
@@ -267,9 +266,10 @@ impl Behavior for Intro {
                             audio_file.read_to_end(&mut audio_data).unwrap();
                             assert_eq!(audio_data.len(), expected_len);
 
-                            let chunk = buffer_into_chunk(audio_data.into_boxed_slice()).unwrap();
-                            mixer::Channel::all().play(&chunk, 0).unwrap();
-                            self.chunk = Some(chunk);
+                            let sound = Sound::new(audio_data);
+                            let sink = rodio::Sink::try_new(&game.audio_stream_handle).unwrap();
+                            sink.append(sound.as_source());
+                            self.audio_sink = Some(sink);
                         }
                     };
 
@@ -352,32 +352,12 @@ impl Behavior for MainMenu {
         );
 
         if button_pressed {
-            mixer::Channel::all().play(&game.sounds[0], 0).unwrap();
+            game.audio_stream_handle
+                .play_raw(game.sounds[0].as_source().convert_samples())
+                .unwrap();
         }
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None
-    }
-}
-
-fn buffer_into_chunk(buffer: Box<[u8]>) -> Result<mixer::Chunk, String> {
-    let len = buffer.len();
-    let mut raw = unsafe {
-        sdl2_sys::mixer::Mix_QuickLoad_RAW(
-            Box::into_raw(buffer) as *mut u8,
-            len.try_into().unwrap(),
-        )
-    };
-    if raw.is_null() {
-        Err(get_error())
-    } else {
-        // allocated set to 1 makes SDL believe it allocated the memory for the chunk, so, when we drop
-        // the Chunk, SDL_FreeChunk will be called and it'll deallocate the memory. I believe this is
-        // fine, as long as free() is enough to deallocate Box<[u8]> (no special routines to call) and
-        // SDL uses the same allocator as Rust does (few tests confirm that).
-        unsafe {
-            (*raw).allocated = 1;
-        }
-        Ok(mixer::Chunk { raw, owned: true })
     }
 }
