@@ -6,7 +6,7 @@ use sdl2::mixer;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
-use sdl2_sys;
+
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
@@ -78,7 +78,7 @@ impl Game {
 
         Ok(Game {
             root_dir: root_dir.to_path_buf(),
-            data_dir: data_dir,
+            data_dir,
             music: None,
             paldat: paldat::Paldat::load(fs::File::open(root_dir.join("pal.dat")).unwrap())
                 .unwrap(),
@@ -178,7 +178,7 @@ impl Game {
                 }
             })?;
             canvas.clear();
-            canvas.copy(&texture, None, None)?;
+            canvas.copy(texture, None, None)?;
             canvas.present();
         }
         Ok(())
@@ -369,7 +369,7 @@ fn buffer_into_chunk(buffer: Box<[u8]>) -> Result<mixer::Chunk, String> {
         )
     };
     if raw.is_null() {
-        return Err(get_error());
+        Err(get_error())
     } else {
         // allocated set to 1 makes SDL believe it allocated the memory for the chunk, so, when we drop
         // the Chunk, SDL_FreeChunk will be called and it'll deallocate the memory. I believe this is
@@ -378,9 +378,9 @@ fn buffer_into_chunk(buffer: Box<[u8]>) -> Result<mixer::Chunk, String> {
         unsafe {
             (*raw).allocated = 1;
         }
-        return Ok(mixer::Chunk {
-            raw: raw,
+        Ok(mixer::Chunk {
+            raw,
             owned: true,
-        });
+        })
     }
 }
