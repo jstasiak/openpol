@@ -44,10 +44,7 @@ impl Grafdat {
     /// * The image can't be loaded
     /// * The image loaded is too small (see `MINIMUM_IMAGE_DIMENSIONS`)
     pub fn load<T: io::Read>(reader: T) -> Option<Grafdat> {
-        match Grafdat::load_images(reader) {
-            None => None,
-            Some(images) => Some(Grafdat::load_from_images(&images)),
-        }
+        Grafdat::load_images(reader).map(|images| Grafdat::load_from_images(&images))
     }
 
     /// Load graf.dat images from a reader. The error conditions of this function are the same

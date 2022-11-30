@@ -33,6 +33,6 @@ fn main() {
     let palette = paldat.palette_data(palette_index);
 
     let mut rgb = Vec::new();
-    image13h::indices_to_rgb(image13h.data(), &palette, &mut rgb);
+    image13h::indices_to_rgb(image13h.data(), palette, &mut rgb);
     ppm::write_ppm(image13h.width(), image13h.height(), &rgb[..], io::stdout()).unwrap();
 }
