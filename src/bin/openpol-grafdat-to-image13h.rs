@@ -31,7 +31,7 @@ fn main() {
     let images = grafdat.to_images();
     for (i, image) in images.iter().enumerate() {
         let yoffset = i * grafdat::IMAGE_DIMENSIONS.1;
-        image_all.blit(&image, 0, yoffset);
+        image_all.blit(image, 0, yoffset);
     }
     image_all.save(io::stdout());
 }
