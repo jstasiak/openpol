@@ -23,7 +23,7 @@ jobs:
         toolchain: ${{ matrix.version }}
         override: true
         components: rustfmt, llvm-tools-preview
-    - name: Install xmllint
+    - name: Install SDL
       run: sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev  
     - name: Clean
       run: cargo clean
