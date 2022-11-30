@@ -7,7 +7,7 @@ use sdl2::get_error;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
-use sdl2_sys;
+
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
@@ -178,7 +178,7 @@ impl Game {
                 }
             })?;
             canvas.clear();
-            canvas.copy(&texture, None, None)?;
+            canvas.copy(texture, None, None)?;
             canvas.present();
         }
         Ok(())
