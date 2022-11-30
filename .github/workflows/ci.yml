@@ -23,6 +23,8 @@ jobs:
         toolchain: ${{ matrix.version }}
         override: true
         components: rustfmt, clippy
+    - name: Install dependencies
+      run: sudo apt update && sudo apt install libasound2-dev
     - name: Clean
       run: cargo clean
     - name: Build
