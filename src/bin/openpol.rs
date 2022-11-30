@@ -3,18 +3,18 @@ use openpol::audio::Sound;
 use openpol::{grafdat, image13h, paldat, sounddat};
 use rodio::Source;
 use sdl2::event::Event;
-use sdl2::get_error;
+
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
 
 use std::cmp;
-use std::convert::TryInto;
+
 use std::env;
 use std::fs::{self, File};
 use std::io::{prelude::*, BufReader};
 use std::path;
-use std::sync::Arc;
+
 
 const VERSION: &str = env!("GIT_DESCRIPTION");
 
@@ -76,7 +76,7 @@ impl Game {
 
         Ok(Game {
             root_dir: root_dir.to_path_buf(),
-            data_dir: data_dir,
+            data_dir,
             audio_stream,
             audio_stream_handle,
             music: None,
@@ -90,7 +90,7 @@ impl Game {
             .unwrap()
             .into_vecs()
             .into_iter()
-            .map(|v| Sound::new(v))
+            .map(Sound::new)
             .collect(),
         })
     }
