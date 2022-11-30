@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        version: [nightly]
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.version }}
+        override: true
+        components: rustfmt, clippy
+    - name: Install dependencies
+      run: sudo apt update && sudo apt install libasound2-dev
+    - name: Clean
+      run: cargo clean
+    - name: Build
+      run: cargo build --verbose
+      env:
+        CARGO_INCREMENTAL: '0'
+        # TODO: see if these flags are needed if cargo test call below has them too
+        RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
+        RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
+    - name: Test
+      run: cargo test
+      env:
+        # cargo test builds some things too so we need to add this flag here as well
+        CARGO_INCREMENTAL: '0'
+        # TODO: see if the flags are ok. I had to remove -Cpanic=abort because:
+        #
+        # error: the linked panic runtime `panic_unwind` is not compiled with this crate's panic strategy `abort`
+        #
+        # error: could not compile `flic` due to previous error
+        RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
+        RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
+    - name: Enforce formatting
+      run: cargo fmt -- --check
+    - name: Run clippy
+      run: cargo clippy
+    - id: coverage  
+      uses: actions-rs/grcov@v0.1
+    - uses: codecov/codecov-action@v1
+      with:
+        verbose: true
