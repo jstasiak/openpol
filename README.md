@@ -1,6 +1,6 @@
 # OpenPol
-[![Build Status](https://travis-ci.org/jstasiak/openpol.svg?branch=master)](https://travis-ci.org/jstasiak/openpol)
-[![Coverage Status](https://coveralls.io/repos/github/jstasiak/openpol/badge.svg?branch=master)](https://coveralls.io/github/jstasiak/openpol?branch=master)
+[![Build statis](https://github.com/jstasiak/openpol/actions/workflows/ci.yml/badge.svg)](https://github.com/jstasiak/openpol/actions/workflows/ci.yml)
+[![Test coverage](https://codecov.io/gh/jstasiak/openpol/branch/master/graph/badge.svg?token=KBLW2AYJMU)](https://codecov.io/gh/jstasiak/openpol)
 
 An open source reimplementation of the first Polish RTS video game Polanie (also known as VICTORY, OSADNICI).
 
