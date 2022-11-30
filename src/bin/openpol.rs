@@ -378,9 +378,6 @@ fn buffer_into_chunk(buffer: Box<[u8]>) -> Result<mixer::Chunk, String> {
         unsafe {
             (*raw).allocated = 1;
         }
-        Ok(mixer::Chunk {
-            raw,
-            owned: true,
-        })
+        Ok(mixer::Chunk { raw, owned: true })
     }
 }
