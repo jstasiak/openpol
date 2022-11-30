@@ -22,7 +22,7 @@ jobs:
       with:
         toolchain: ${{ matrix.version }}
         override: true
-        components: rustfmt, llvm-tools-preview
+        components: rustfmt, clippy
     - name: Install SDL
       run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev  
     - name: Clean
