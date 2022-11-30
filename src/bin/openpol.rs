@@ -28,6 +28,8 @@ struct Game {
     grafdat: grafdat::Grafdat,
     paldat: paldat::Paldat,
     music: Option<rodio::Sink>,
+    // We need to keep the OutputStream alive for the audio to work.
+    #[allow(dead_code)]
     audio_stream: rodio::OutputStream,
     audio_stream_handle: rodio::OutputStreamHandle,
     sounds: Vec<Sound>,
