@@ -7,10 +7,9 @@ use std::process;
 
 fn usage(program: &str) -> ! {
     eprintln!(
-        "Usage: {} GRAFDAT_FILE
+        "Usage: {program} GRAFDAT_FILE
 
 Combine images found in a graf.dat file into a single image13h image. The result is printed to stdout",
-        program,
     );
     process::exit(1);
 }

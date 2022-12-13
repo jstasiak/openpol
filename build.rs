@@ -6,6 +6,6 @@ fn main() -> Result<(), String> {
         .output()
         .map_err(|e| e.to_string())?;
     let git_description = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
-    println!("cargo:rustc-env=GIT_DESCRIPTION={}", git_description);
+    println!("cargo:rustc-env=GIT_DESCRIPTION={git_description}");
     Ok(())
 }

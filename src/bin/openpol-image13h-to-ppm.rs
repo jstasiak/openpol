@@ -8,11 +8,10 @@ use std::process;
 
 fn usage(program: &str) -> ! {
     eprintln!(
-        "Usage: {} IMAGE13H_FILE PALETTE_FILE PALETTE_INDEX
+        "Usage: {program} IMAGE13H_FILE PALETTE_FILE PALETTE_INDEX
 
 Convert an image13h image from IMAGE13H_FILE using PALETTE_INDEX from PALETTE_FILE to an RGB image
 using PPM text format. The PPM image is printed to stdout.",
-        program,
     );
     process::exit(1);
 }

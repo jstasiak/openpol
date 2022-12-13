@@ -1,9 +1,11 @@
 use flic::{FlicFile, RasterMut};
 use openpol::audio::Sound;
+use openpol::image13h::Rect;
+use openpol::input::{Input, InputProcessor, InputProcessorResult};
 use openpol::{grafdat, image13h, paldat, sounddat};
 use rodio::Source;
-use sdl2::event::Event;
 
+use sdl2::keyboard::Scancode;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use sdl2::render::{Texture, WindowCanvas};
 use sdl2::{EventPump, TimerSubsystem};
@@ -47,7 +49,7 @@ impl Game {
         let file_path = self
             .root_dir
             .join("music")
-            .join(format!("track{}.ogg", track));
+            .join(format!("track{track}.ogg"));
 
         if file_path.is_file() {
             // TODO: Get rid of these unwrap()s
@@ -58,7 +60,7 @@ impl Game {
             self.music = Some(sink)
         } else {
             self.music = None;
-            eprintln!("Music file {:?} not found", file_path);
+            eprintln!("Music file {file_path:?} not found");
         }
     }
 }
@@ -104,7 +106,7 @@ impl Game {
         sdl.mouse().show_cursor(false);
         let window = video
             .window(
-                &format!("openpol {}", VERSION),
+                &format!("openpol {VERSION}"),
                 image13h::SCREEN_WIDTH as u32 * 2,
                 image13h::SCREEN_HEIGHT as u32 * 2,
             )
@@ -143,38 +145,19 @@ impl Game {
     ) -> Result<(), String> {
         let mut last_render = timer.ticks();
         let mut behavior: Box<dyn Behavior> = Box::new(Intro::new(self.data_dir.clone()).unwrap());
-        let mut running = true;
-        let mut input = Input {
-            mouse_position: (0, 0),
-        };
-        while running {
-            let mut button_pressed = false;
-            // get the inputs here
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. } => {
-                        running = false;
-                    }
-                    Event::KeyDown { .. } => {
-                        button_pressed = true;
-                    }
-                    Event::MouseMotion { x, y, .. } => {
-                        // We currently have to divide the coordinates by two, because we
-                        // scale the screen to be double the game's original resolution.
-                        input.mouse_position = (x as usize / 2, y as usize / 2);
-                    }
-                    _ => (),
-                }
-            }
+        let mut input_processor = InputProcessor::new();
+        loop {
+            let input = match input_processor.process_frame_events(event_pump.poll_iter()) {
+                InputProcessorResult::Quit => return Ok(()),
+                InputProcessorResult::Input(input) => input,
+            };
             let now = timer.ticks();
             let dt = now - last_render;
             last_render = now;
             // NOTE: pitch is assumed to be equal to video width * 3 bytes (RGB), eg. there are no
             // holes between rows in the buffer.
             texture.with_lock(None, |buffer: &mut [u8], _pitch: usize| {
-                if let Some(new_behavior) =
-                    behavior.update(&mut self, button_pressed, dt, &input, buffer)
-                {
+                if let Some(new_behavior) = behavior.update(&mut self, dt, &input, buffer) {
                     behavior = new_behavior;
                 }
             })?;
@@ -182,7 +165,6 @@ impl Game {
             canvas.copy(texture, None, None)?;
             canvas.present();
         }
-        Ok(())
     }
 }
 
@@ -190,15 +172,10 @@ trait Behavior {
     fn update(
         &mut self,
         game: &mut Game,
-        button_pressed: bool,
         ticks: u32,
         input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>>;
-}
-
-struct Input {
-    pub mouse_position: (usize, usize),
 }
 
 struct Intro {
@@ -236,12 +213,11 @@ impl Behavior for Intro {
     fn update(
         &mut self,
         game: &mut Game,
-        button_pressed: bool,
         ticks: u32,
-        _input: &Input,
+        input: &Input,
         buffer: &mut [u8],
     ) -> Option<Box<dyn Behavior>> {
-        if button_pressed {
+        if input.key_pressed.is_some() {
             self.next();
         }
 
@@ -249,12 +225,12 @@ impl Behavior for Intro {
             None => match self.current_intro {
                 i @ 0..=2 => {
                     let flic =
-                        FlicFile::open(&self.data_dir.join(format!("S00{}.DAT", i))).unwrap();
+                        FlicFile::open(&self.data_dir.join(format!("S00{i}.DAT"))).unwrap();
                     assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
                     assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
                     self.flic = Some(flic);
 
-                    match fs::File::open(&self.data_dir.join(format!("I00{}.DAT", i))) {
+                    match fs::File::open(&self.data_dir.join(format!("I00{i}.DAT"))) {
                         Err(_) => (),
                         Ok(mut audio_file) => {
                             // The IXXX.DAT files have a 4-byte little-endian integer header that
@@ -324,7 +300,6 @@ impl Behavior for MainMenu {
     fn update(
         &mut self,
         game: &mut Game,
-        button_pressed: bool,
         _ticks: u32,
         input: &Input,
         buffer: &mut [u8],
@@ -345,19 +320,47 @@ impl Behavior for MainMenu {
             // bottom borders. Clipping the blitting coordinates for now but it's a hack.
             cmp::min(
                 image13h::SCREEN_WIDTH - cursor.width(),
-                input.mouse_position.0,
+                input.mouse_position.x,
             ),
             cmp::min(
                 image13h::SCREEN_HEIGHT - cursor.height(),
-                input.mouse_position.1,
+                input.mouse_position.y,
             ),
         );
 
-        if button_pressed {
-            game.audio_stream_handle
-                .play_raw(game.sounds[0].as_source().convert_samples())
-                .unwrap();
+        match input.key_pressed {
+            Some(Scancode::N) => {
+                println!("New game (keyboard)");
+            }
+            Some(Scancode::W) => {
+                println!("Load game (keyboard)");
+            }
+            Some(Scancode::K) => {
+                println!("Quit (keyboard)");
+            }
+            Some(_) => {
+                game.audio_stream_handle
+                    .play_raw(game.sounds[0].as_source().convert_samples())
+                    .unwrap();
+            }
+            None => {}
         }
+        if input.mouse_button_pressed.is_some() {
+            if Rect::from_ranges(20..131, 130..152)
+                .contains(input.mouse_position.x, input.mouse_position.y)
+            {
+                println!("Quit (mouse)");
+            } else if Rect::from_ranges(20..131, 45..71)
+                .contains(input.mouse_position.x, input.mouse_position.y)
+            {
+                println!("New game (mouse)");
+            } else if Rect::from_ranges(20..131, 90..116)
+                .contains(input.mouse_position.x, input.mouse_position.y)
+            {
+                println!("Load game (mouse)");
+            }
+        }
+
         // TODO Stop converting and copying data every frame unnecessarily
         image13h::indices_to_rgb(screen.data(), game.paldat.palette_data(2), buffer);
         None

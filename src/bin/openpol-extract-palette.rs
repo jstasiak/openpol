@@ -6,13 +6,12 @@ use std::process;
 
 fn usage(program: &str) -> ! {
     eprintln!(
-        "Usage: {} FILE [PALETTE]
+        "Usage: {program} FILE [PALETTE]
 
 When no PALETTE is passed – print the number of palettes in FILE.
 PALETTE is a 0-based index of a palette in the FILE. If pressent – dump the palette data to stdout.
 
         ",
-        program,
     );
     process::exit(1);
 }

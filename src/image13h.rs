@@ -225,6 +225,13 @@ impl Rect {
     pub fn beyond_bottom(&self) -> usize {
         self.top + self.height
     }
+
+    pub fn contains(&self, x: usize, y: usize) -> bool {
+        x >= self.left
+            && x < self.left + self.width
+            && y >= self.top
+            && y < self.top + self.height
+    }
 }
 
 pub fn indices_to_rgb<T: io::Write>(indices: &[u8], palette: &[u8], mut writer: T) {
@@ -293,6 +300,19 @@ mod tests {
         assert_eq!(rect.beyond_right(), 10);
         assert_eq!(rect.bottom_inclusive(), 13);
         assert_eq!(rect.beyond_bottom(), 14);
+    }
+
+    #[test]
+    fn test_rect_contains_works() {
+        let rect = Rect::from_ranges(10..21, 20..41);
+        assert!(rect.contains(10, 20));
+        assert!(rect.contains(20, 40));
+        // x out of range
+        assert!(!rect.contains(9, 20));
+        assert!(!rect.contains(21, 20));
+        // y out of range
+        assert!(!rect.contains(15, 19));
+        assert!(!rect.contains(15, 41));
     }
 
     #[test]
