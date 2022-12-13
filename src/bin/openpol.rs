@@ -145,7 +145,7 @@ impl Game {
         let mut behavior: Box<dyn Behavior> = Box::new(Intro::new(self.data_dir.clone()).unwrap());
         let mut running = true;
         let mut input = Input {
-            mouse_position: (0, 0),
+            mouse_position: MousePosition::new(0, 0),
         };
         while running {
             let mut button_pressed = false;
@@ -161,7 +161,7 @@ impl Game {
                     Event::MouseMotion { x, y, .. } => {
                         // We currently have to divide the coordinates by two, because we
                         // scale the screen to be double the game's original resolution.
-                        input.mouse_position = (x as usize / 2, y as usize / 2);
+                        input.mouse_position = MousePosition::new(x as usize / 2, y as usize / 2);
                     }
                     _ => (),
                 }
@@ -198,7 +198,19 @@ trait Behavior {
 }
 
 struct Input {
-    pub mouse_position: (usize, usize),
+    pub mouse_position: MousePosition,
+}
+
+struct MousePosition {
+    x: usize,
+    y: usize,
+}
+
+impl MousePosition {
+    pub fn new(x: usize, y: usize) -> MousePosition {
+        // TODO: Check the range
+        MousePosition { x, y }
+    }
 }
 
 struct Intro {
@@ -345,11 +357,11 @@ impl Behavior for MainMenu {
             // bottom borders. Clipping the blitting coordinates for now but it's a hack.
             cmp::min(
                 image13h::SCREEN_WIDTH - cursor.width(),
-                input.mouse_position.0,
+                input.mouse_position.x,
             ),
             cmp::min(
                 image13h::SCREEN_HEIGHT - cursor.height(),
-                input.mouse_position.1,
+                input.mouse_position.y,
             ),
         );
 
