@@ -228,9 +228,9 @@ impl Rect {
 
     pub fn contains(&self, x: usize, y: usize) -> bool {
         x >= self.left
-            && x <= self.left + self.width - 1
+            && x < self.left + self.width
             && y >= self.top
-            && y <= self.top + self.height - 1
+            && y < self.top + self.height
     }
 }
 

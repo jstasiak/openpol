@@ -8,7 +8,7 @@ pub fn write_ppm<T: io::Write>(
     data: &[u8],
     mut w: T,
 ) -> io::Result<()> {
-    write!(w, "P3\n{} {}\n255\n", width, height)?;
+    write!(w, "P3\n{width} {height}\n255\n")?;
 
     for y in 0..height {
         for x in 0..width {

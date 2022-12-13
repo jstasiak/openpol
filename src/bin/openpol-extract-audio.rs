@@ -6,13 +6,12 @@ use std::process;
 
 fn usage(program: &str) -> ! {
     eprintln!(
-        "Usage: {} FILE [SOUND]
+        "Usage: {program} FILE [SOUND]
 
 When no SOUND is passed – list all sounds in the FILE.
 SOUND is a 0-based number of a sound in the FILE. If pressent – dump the sound data to stdout.
 
         ",
-        program,
     );
     process::exit(1);
 }
@@ -37,7 +36,7 @@ fn main() {
     match sound {
         Some(sound) => io::stdout().write_all(sounddat.sound_data(sound)).unwrap(),
         None => {
-            println!("Sounds in {}:", path);
+            println!("Sounds in {path}:");
             for i in 0..sounddat.sounds() {
                 println!("{}: {} bytes", i, sounddat.sound_data(i).len());
             }

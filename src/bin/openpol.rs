@@ -49,7 +49,7 @@ impl Game {
         let file_path = self
             .root_dir
             .join("music")
-            .join(format!("track{}.ogg", track));
+            .join(format!("track{track}.ogg"));
 
         if file_path.is_file() {
             // TODO: Get rid of these unwrap()s
@@ -60,7 +60,7 @@ impl Game {
             self.music = Some(sink)
         } else {
             self.music = None;
-            eprintln!("Music file {:?} not found", file_path);
+            eprintln!("Music file {file_path:?} not found");
         }
     }
 }
@@ -106,7 +106,7 @@ impl Game {
         sdl.mouse().show_cursor(false);
         let window = video
             .window(
-                &format!("openpol {}", VERSION),
+                &format!("openpol {VERSION}"),
                 image13h::SCREEN_WIDTH as u32 * 2,
                 image13h::SCREEN_HEIGHT as u32 * 2,
             )
@@ -225,12 +225,12 @@ impl Behavior for Intro {
             None => match self.current_intro {
                 i @ 0..=2 => {
                     let flic =
-                        FlicFile::open(&self.data_dir.join(format!("S00{}.DAT", i))).unwrap();
+                        FlicFile::open(&self.data_dir.join(format!("S00{i}.DAT"))).unwrap();
                     assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
                     assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
                     self.flic = Some(flic);
 
-                    match fs::File::open(&self.data_dir.join(format!("I00{}.DAT", i))) {
+                    match fs::File::open(&self.data_dir.join(format!("I00{i}.DAT"))) {
                         Err(_) => (),
                         Ok(mut audio_file) => {
                             // The IXXX.DAT files have a 4-byte little-endian integer header that
