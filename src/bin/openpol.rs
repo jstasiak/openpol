@@ -224,8 +224,7 @@ impl Behavior for Intro {
         let flic = match &mut self.flic {
             None => match self.current_intro {
                 i @ 0..=2 => {
-                    let flic =
-                        FlicFile::open(&self.data_dir.join(format!("S00{i}.DAT"))).unwrap();
+                    let flic = FlicFile::open(&self.data_dir.join(format!("S00{i}.DAT"))).unwrap();
                     assert_eq!(flic.width() as usize, image13h::SCREEN_WIDTH);
                     assert_eq!(flic.height() as usize, image13h::SCREEN_HEIGHT);
                     self.flic = Some(flic);
